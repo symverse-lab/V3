@@ -14,6 +14,12 @@
   - Recommended reading order
   - Status overview
 
+- `docs/pqc-and-blockchain-introduction.md`
+  - PQC background primer
+  - NIST-standardized PQC families at a high level
+  - Why blockchains care about quantum-resistant signatures
+  - Connection to V3 account, transaction, and CAD documents
+
 - `docs/v3-basic-spec.md`
   - V3 baseline scope
   - Design principles
