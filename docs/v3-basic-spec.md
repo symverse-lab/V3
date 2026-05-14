@@ -192,7 +192,7 @@ type txdata struct {
 }
 ```
 
-Detailed transaction field ordering, encoding, hashing, and signing rules SHOULD be defined in a future `transaction-spec.md`.
+Detailed transaction field ordering, encoding, hashing, and signing rules SHOULD be defined in `transaction-spec.md`.
 
 ---
 
