@@ -3,7 +3,7 @@
 <div align="center">
 
 **Official documentation workspace for SymVerse V3**  
-_Protocol concepts, baseline specifications, architecture notes, and implementation references._
+_Protocol concepts, background primers, baseline specifications, architecture notes, and implementation references._
 
 </div>
 
@@ -15,6 +15,7 @@ This repository is the **documentation hub** for **SymVerse V3**.
 
 It organizes and publishes:
 
+- Introductory background documents
 - V3 baseline specifications
 - Quantum-resistant blockchain architecture
 - PQC account and transaction models
@@ -31,6 +32,7 @@ It organizes and publishes:
 
 | Document | Role |
 |---|---|
+| [`docs/pqc-and-blockchain-introduction.md`](./docs/pqc-and-blockchain-introduction.md) | Introductory guide to PQC and blockchain |
 | [`docs/v3-basic-spec.md`](./docs/v3-basic-spec.md) | Overall V3 baseline specification |
 | [`docs/membership-spec.md`](./docs/membership-spec.md) | Nickname, RefCode, Referrer, Link, LinkedBy |
 | [`docs/transaction-spec.md`](./docs/transaction-spec.md) | Transaction model, signing boundaries, signature payloads |
@@ -44,13 +46,14 @@ It organizes and publishes:
 
 ## Recommended Reading Order
 
-1. [`v3-basic-spec.md`](./docs/v3-basic-spec.md)
-2. [`membership-spec.md`](./docs/membership-spec.md)
-3. [`transaction-spec.md`](./docs/transaction-spec.md)
-4. [`pqc-account-spec.md`](./docs/pqc-account-spec.md)
+1. [`pqc-and-blockchain-introduction.md`](./docs/pqc-and-blockchain-introduction.md)
+2. [`v3-basic-spec.md`](./docs/v3-basic-spec.md)
+3. [`pqc-account-spec.md`](./docs/pqc-account-spec.md)
+4. [`transaction-spec.md`](./docs/transaction-spec.md)
 5. [`cad-spec.md`](./docs/cad-spec.md)
-6. [`rpc-api-spec.md`](./docs/rpc-api-spec.md)
-7. [`testing-guide.md`](./docs/testing-guide.md)
+6. [`membership-spec.md`](./docs/membership-spec.md)
+7. [`rpc-api-spec.md`](./docs/rpc-api-spec.md)
+8. [`testing-guide.md`](./docs/testing-guide.md)
 
 ---
 
@@ -58,6 +61,7 @@ It organizes and publishes:
 
 | Area | Status |
 |---|---|
+| PQC and blockchain introduction | Draft v0.1 |
 | V3 basic spec | Draft v0.1 |
 | Membership spec | Draft v0.1 |
 | Transaction spec | Draft v0.1 |
@@ -65,7 +69,7 @@ It organizes and publishes:
 | CAD spec | Draft v0.1 |
 | RPC/API spec | Draft v0.1 |
 | Testing guide | Draft v0.1 |
-| Changelog | Started |
+| Changelog | Updated |
 
 ---
 
@@ -75,6 +79,7 @@ It organizes and publishes:
 V3/
 ├── README.md
 └── docs/
+    ├── pqc-and-blockchain-introduction.md
     ├── v3-basic-spec.md
     ├── membership-spec.md
     ├── transaction-spec.md
@@ -91,12 +96,13 @@ V3/
 
 The documentation tracks these major themes:
 
-1. **Quantum-resistant transaction architecture**
-2. **PQC-capable account representation**
-3. **Consensus Authorization Digest (CAD)**
-4. **Membership state formalization**
-5. **Compatibility with existing SymVerse flows**
-6. **Reproducible protocol and runtime tests**
+1. **Post-quantum cryptography and blockchain motivation**
+2. **Quantum-resistant transaction architecture**
+3. **PQC-capable account representation**
+4. **Consensus Authorization Digest (CAD)**
+5. **Membership state formalization**
+6. **Compatibility with existing SymVerse flows**
+7. **Reproducible protocol and runtime tests**
 
 ---
 
@@ -104,6 +110,7 @@ The documentation tracks these major themes:
 
 V3 documents should remain:
 
+- **Accessible where needed** — introductory documents should help non-specialist readers
 - **Specification-oriented** — rules, terms, and boundaries are explicit
 - **Implementation-aware** — tied to real runtime behavior where applicable
 - **Versioned** — draft state and revision history are visible
