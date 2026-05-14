@@ -13,7 +13,7 @@ _Protocol concepts, baseline specifications, architecture notes, and implementat
 
 This repository is the **documentation hub** for **SymVerse V3**.
 
-It is intended to organize and publish:
+It organizes and publishes:
 
 - V3 baseline specifications
 - Quantum-resistant blockchain architecture
@@ -23,7 +23,34 @@ It is intended to organize and publish:
 - Public RPC/API references
 - Test scenarios and implementation notes
 
-`V3` is treated as a **docs-first repository**, not as a node source-code repository.
+`V3` is a **docs-first repository**, not a node source-code repository.
+
+---
+
+## Documentation Index
+
+| Document | Role |
+|---|---|
+| [`docs/v3-basic-spec.md`](./docs/v3-basic-spec.md) | Overall V3 baseline specification |
+| [`docs/membership-spec.md`](./docs/membership-spec.md) | Nickname, RefCode, Referrer, Link, LinkedBy |
+| [`docs/transaction-spec.md`](./docs/transaction-spec.md) | Transaction model, signing boundaries, signature payloads |
+| [`docs/pqc-account-spec.md`](./docs/pqc-account-spec.md) | PQC account representation and authorization metadata |
+| [`docs/cad-spec.md`](./docs/cad-spec.md) | Consensus Authorization Digest architecture |
+| [`docs/rpc-api-spec.md`](./docs/rpc-api-spec.md) | Public API documentation baseline |
+| [`docs/testing-guide.md`](./docs/testing-guide.md) | End-to-end scenario testing reference |
+| [`docs/changelog.md`](./docs/changelog.md) | Documentation revision log |
+
+---
+
+## Recommended Reading Order
+
+1. [`v3-basic-spec.md`](./docs/v3-basic-spec.md)
+2. [`membership-spec.md`](./docs/membership-spec.md)
+3. [`transaction-spec.md`](./docs/transaction-spec.md)
+4. [`pqc-account-spec.md`](./docs/pqc-account-spec.md)
+5. [`cad-spec.md`](./docs/cad-spec.md)
+6. [`rpc-api-spec.md`](./docs/rpc-api-spec.md)
+7. [`testing-guide.md`](./docs/testing-guide.md)
 
 ---
 
@@ -31,40 +58,28 @@ It is intended to organize and publish:
 
 | Area | Status |
 |---|---|
-| Repository landing page | Initial draft |
-| V3 basic specification | Draft v0.1 |
-| Transaction specification | Planned |
-| PQC account specification | Planned |
-| CAD specification | Planned |
-| Membership specification | Planned |
-| RPC/API reference | Planned |
-| Test guide | Planned |
+| V3 basic spec | Draft v0.1 |
+| Membership spec | Draft v0.1 |
+| Transaction spec | Draft v0.1 |
+| PQC account spec | Draft v0.1 |
+| CAD spec | Draft v0.1 |
+| RPC/API spec | Draft v0.1 |
+| Testing guide | Draft v0.1 |
+| Changelog | Started |
 
 ---
 
-## Start Here
-
-### 1. Basic Specification
-
-The first baseline document is:
-
-- [`docs/v3-basic-spec.md`](./docs/v3-basic-spec.md)
-
-This document defines the initial V3 scope, terminology, architecture domains, and the first public protocol-level baseline.
-
----
-
-## Planned Documentation Map
+## Documentation Structure
 
 ```text
 V3/
 ├── README.md
 └── docs/
     ├── v3-basic-spec.md
+    ├── membership-spec.md
     ├── transaction-spec.md
     ├── pqc-account-spec.md
     ├── cad-spec.md
-    ├── membership-spec.md
     ├── rpc-api-spec.md
     ├── testing-guide.md
     └── changelog.md
@@ -72,96 +87,27 @@ V3/
 
 ---
 
-## Documentation Domains
+## Current V3 Themes
 
-### A. V3 Core Specification
-
-Defines:
-
-- V3 protocol goals
-- Terminology
-- Compatibility principles
-- Specification structure
-- Versioning direction
-
-### B. PQC Account and Transaction Model
-
-Defines:
-
-- PQC algorithm identifiers
-- Public-key representation
-- PQC signature payload handling
-- Transaction authorization fields
-- Legacy compatibility boundaries
-
-### C. Consensus Authorization Digest (CAD)
-
-Defines:
-
-- CAD motivation
-- Digest construction scope
-- Relationship between transaction data, witness data, and consensus commitment
-- Future-proofing for multiple PQC signature schemes
-
-### D. Membership Runtime
-
-Defines:
-
-- Nickname ownership
-- RefCode generation
-- Referrer processing
-- Link / LinkedBy relationship semantics
-- Public query behavior
-
-### E. Public APIs and Test References
-
-Defines:
-
-- Citizen query APIs
-- Membership query APIs
-- PQC transaction testing
-- Referral and Link test scenarios
-- Node restart and sync validation references
-
----
-
-## Current V3 Design Themes
-
-The documentation currently tracks the following major themes:
+The documentation tracks these major themes:
 
 1. **Quantum-resistant transaction architecture**
 2. **PQC-capable account representation**
 3. **Consensus Authorization Digest (CAD)**
 4. **Membership state formalization**
 5. **Compatibility with existing SymVerse flows**
-6. **Reproducible protocol and runtime test procedures**
+6. **Reproducible protocol and runtime tests**
 
 ---
 
 ## Writing Direction
 
-The V3 docs should aim to be:
+V3 documents should remain:
 
-- **Specification-oriented** — clear rules, definitions, and boundaries
-- **Implementation-aware** — grounded in real node behavior and structures
-- **Versioned** — draft status and change history should be explicit
-- **Expandable** — large topics should split into dedicated documents over time
-
----
-
-## Recommended Next Documents
-
-After the basic spec, the most natural next documents are:
-
-1. `membership-spec.md`
-2. `transaction-spec.md`
-3. `cad-spec.md`
-
-This order matches the current implementation and research flow:
-
-- Membership rules are already becoming concrete in code and test scripts.
-- Transaction and PQC structures are the next baseline.
-- CAD should then be documented as the consensus-level architecture.
+- **Specification-oriented** — rules, terms, and boundaries are explicit
+- **Implementation-aware** — tied to real runtime behavior where applicable
+- **Versioned** — draft state and revision history are visible
+- **Expandable** — large topics can later split into deeper documents
 
 ---
 
