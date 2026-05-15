@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.4  
+> **Status:** Draft v0.5  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -14,6 +14,7 @@ The protocol covers:
 
 - Citizen public identity management through `NickName`
 - NickName as a globally unique Citizen lookup key
+- **Direct coin transfer to a NickName**, without requiring the sender to enter a raw blockchain address
 - Citizen referral codes through `RefCode`
 - Referrer registration through an existing Citizen’s RefCode
 - Link and LinkedBy relations created through NickName resolution
@@ -228,6 +229,18 @@ NickName identifies a Citizen in a human-readable way.
 A NickName is not merely a display label.  
 It is a **protocol-recognized unique Citizen key**.
 
+This design enables a distinctive Citizen Protocol feature:
+
+```text
+A sender may transfer coins directly to a NickName,
+instead of manually entering the recipient's raw blockchain address.
+```
+
+That capability is exposed through dedicated transfer APIs such as:
+
+- `SendTransactionToNick`
+- `SendRawTransactionToNick`
+
 ---
 
 ## 6.2 NickName as a Unique Blockchain Key
@@ -405,7 +418,131 @@ This explicit two-step process keeps NickName ownership changes clear and audita
 
 ---
 
-## 6.9 NickName Use in Link Operations
+## 6.9 Direct Coin Transfer to NickName
+
+A NickName can act as a human-readable transfer destination.
+
+Instead of requiring a sender to know and enter:
+
+```text
+0x... recipient address
+```
+
+the Citizen Protocol allows the sender to specify:
+
+```text
+recipient NickName
+```
+
+The system resolves:
+
+```text
+NickName → Citizen owner address
+```
+
+and uses that resolved address as the coin transfer recipient.
+
+This is a major Citizen Protocol feature because it makes blockchain transfers resemble:
+
+```text
+Send coins to "target01"
+```
+
+rather than:
+
+```text
+Send coins to a long raw address string
+```
+
+---
+
+### 6.9.1 `SendTransactionToNick`
+
+`SendTransactionToNick` is used when a wallet, console, or RPC client submits a normal transaction by NickName.
+
+Conceptual example:
+
+```text
+SendTransactionToNick(
+  from = addrA,
+  toNick = "target01",
+  value = 100 SYM
+)
+```
+
+Resolution flow:
+
+```text
+"target01"
+  → resolve NickName owner
+  → recipient Citizen address
+  → submit coin transfer
+```
+
+Expected result:
+
+```text
+Citizen A sends 100 SYM
+to the Citizen who owns NickName "target01".
+```
+
+---
+
+### 6.9.2 `SendRawTransactionToNick`
+
+`SendRawTransactionToNick` is used when the sender prepares or signs a transaction externally and submits the raw transaction using a NickName destination.
+
+Conceptual example:
+
+```text
+SendRawTransactionToNick(
+  rawTransaction = signedRawTx,
+  toNick = "target01"
+)
+```
+
+Resolution flow:
+
+```text
+"target01"
+  → resolve NickName owner
+  → bind the raw transfer destination to that Citizen address
+  → submit the raw transaction
+```
+
+Expected result:
+
+```text
+A signed raw transaction is submitted
+with the transfer destination resolved from NickName "target01".
+```
+
+The exact RPC parameter layout belongs to the public RPC/API specification, but the Citizen Protocol requirement is clear:
+
+```text
+NickName must be usable as a direct transfer destination.
+```
+
+---
+
+### 6.9.3 Why This Is a Distinctive Citizen Protocol Capability
+
+NickName-based transfer is more than a cosmetic convenience.
+
+It means:
+
+1. NickName is a **functional protocol key**, not only a profile label.
+2. A globally unique NickName can be used for:
+   - lookup,
+   - relationship creation,
+   - and direct asset transfer.
+3. Citizen identity becomes directly usable in ordinary economic activity on-chain.
+
+This makes NickName one of the most important externally visible features of the Citizen Protocol.
+
+---
+
+## 6.10 NickName Use in Link Operations
 
 NickName is also the target identifier for Link creation and deletion.
 
@@ -424,14 +561,16 @@ This is another reason NickName uniqueness is foundational to the Citizen Protoc
 
 ---
 
-## 6.10 NickName Validation Scope
+## 6.11 NickName Validation Scope
 
 The NickName validation rule applies to:
 
 - Citizen creation with NickName,
 - `CreateNickName`,
 - `CreateLink`,
-- `DeleteLink`.
+- `DeleteLink`,
+- `SendTransactionToNick`,
+- `SendRawTransactionToNick`.
 
 `DeleteNickName` acts on the Citizen’s current NickName and therefore does not require a NickName input.
 
@@ -669,6 +808,55 @@ RefCode creation does not increase Credit because it is assigned automatically a
 
 # 11. External Transaction Interface
 
+The Citizen Protocol exposes two externally important transaction surfaces:
+
+1. **direct coin transfer by NickName**, and
+2. **Citizen membership operations** for NickName, Referrer, and Link state.
+
+---
+
+## 11.1 Direct Coin Transfer APIs
+
+NickName-based coin transfer is exposed through:
+
+| API | Purpose |
+|---|---|
+| `SendTransactionToNick` | Submit a normal coin transfer using a NickName as the destination |
+| `SendRawTransactionToNick` | Submit a raw/signed transaction using a NickName as the destination |
+
+Both APIs depend on the same protocol behavior:
+
+```text
+Destination NickName
+  → resolved Citizen owner address
+  → coin transfer recipient
+```
+
+### Example A — standard transaction to NickName
+
+```text
+SendTransactionToNick(
+  from = addrA,
+  toNick = "target01",
+  value = 100 SYM
+)
+```
+
+### Example B — raw transaction to NickName
+
+```text
+SendRawTransactionToNick(
+  rawTransaction = signedRawTx,
+  toNick = "target01"
+)
+```
+
+These APIs are externally significant because they allow users to transfer coins using a Citizen identity rather than manually copying an address.
+
+---
+
+## 11.2 Citizen Membership Transaction Fields
+
 Citizen relationship updates are expressed through Citizen membership transactions.
 
 The externally meaningful fields are:
@@ -683,7 +871,7 @@ The externally meaningful fields are:
 
 ---
 
-## 11.1 Field usage by operation
+## 11.3 Field usage by operation
 
 | Operation | `Nick` | `RefCode` | Description |
 |---|---|---|---|
@@ -696,7 +884,7 @@ The externally meaningful fields are:
 
 ---
 
-## 11.2 Supported operation set
+## 11.4 Supported operation set
 
 | Operation | Status |
 |---|---|
@@ -770,6 +958,11 @@ NickName "target01"
   → Citizen T public state
 ```
 
+The same NickName resolution logic is also used when a client sends coins through:
+
+- `SendTransactionToNick`
+- `SendRawTransactionToNick`
+
 ---
 
 # 13. State Transition Summary
@@ -797,6 +990,9 @@ RefCode = immutable deterministic code assigned at Citizen confirmation
 - Minimum 6-character domain-label-style rule.
 - May be registered during Citizen confirmation.
 - May be created by transaction only if no NickName exists.
+- Can be used as a direct coin-transfer destination through:
+  - `SendTransactionToNick`
+  - `SendRawTransactionToNick`
 - Change requires:
 
 ```text
@@ -855,3 +1051,4 @@ DeleteLink
 | v0.2 | 2026-05-15 | Expanded Citizen runtime and operation policy from internal implementation notes |
 | v0.3 | 2026-05-15 | Rewritten as a public-facing protocol specification by removing internal storage layout, internal function names, block-processing insertion details, and simulator validation procedures while strengthening external operation rules and public query behavior |
 | v0.4 | 2026-05-15 | Simplified RefCode presentation by removing implementation-oriented derivation details and substantially expanded NickName as the core Citizen identifier, including uniqueness, domain-label-style validation, normalization, lifecycle, change process, and Link resolution role |
+| v0.5 | 2026-05-15 | Added NickName-based direct coin transfer as a core Citizen Protocol capability, including `SendTransactionToNick`, `SendRawTransactionToNick`, conceptual usage examples, validation scope, and public API significance |
