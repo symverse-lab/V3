@@ -986,3 +986,4 @@ should be specified in later dedicated revisions or companion documents so that 
 | v0.4 | 2026-05-15 | Refined the Type 11 transaction section so that it remains focused on transaction structure, operation code semantics, and direct payload construction rules |
 | v0.5 | 2026-05-15 | Removed internal Go struct and enum declarations from the Type 11 transaction section, retaining only public payload field definitions, operation-code tables, and protocol-level transaction semantics |
 | v0.6 | 2026-05-15 | Corrected the reserved Citizen payload address field from `Sponsor` to `Link`; Link creation and deletion remain Nick-resolved operations rather than direct-address payload operations |
+ 
