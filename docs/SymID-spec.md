@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.5  
+> **Status:** Draft v0.6  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -27,6 +27,19 @@ The V3 identity relationship is:
 
 SymID is therefore not a multi-account identity container.  
 It is the **direct account identifier derived from a cryptographic key pair within a specific chain context**.
+
+Within the blockchain, SymID is used as a **unique account key**:
+
+```text
+SymID = chain-bound unique account identifier
+```
+
+It serves as the protocol-level identifier for:
+
+- account lookup,
+- transaction sender and receiver identification,
+- Citizen/account registration references,
+- public query and validation flows.
 
 ---
 
@@ -211,7 +224,45 @@ The protocol therefore treats SymID as a deterministic account identifier under 
 
 ---
 
-## 3.3 SymID and Account Creation
+## 3.3 SymID as a Unique Account Key
+
+A SymID functions as the unique account key used by the chain to identify a specific account.
+
+The public meaning is:
+
+```text
+One derived SymID
+  → one chain-specific account identity
+```
+
+Because SymID is composed from:
+
+```text
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
+```
+
+it is:
+
+- tied to a specific chain,
+- tied to public-key-derived material,
+- stable for the corresponding account derivation context,
+- suitable for use as the canonical account identifier in transaction and query flows.
+
+In practical protocol terms:
+
+| Context | Role of SymID |
+|---|---|
+| Account lookup | Unique account key |
+| Transaction `from` | Sender account identifier |
+| Transaction `to` | Recipient account identifier, unless an API resolves a Nick to SymID/address |
+| Citizen registration | Account identity anchor |
+| Verification | Identifier checked against the public-key-derived account context |
+
+---
+
+## 3.4 SymID and Account Creation
 
 The typical V3 account creation flow is:
 
@@ -704,3 +755,4 @@ The exact RPC field names are defined in the related API specifications.
 | v0.3 | 2026-05-15 | Rewritten around the concrete V3 SymID derivation policy: public key hashing, last-8-byte public-key-hash component, explicit invalid-input rejection, and unified ECDSA/PQC derivation rules |
 | v0.4 | 2026-05-15 | Simplified the public SymID description to `Version + ChainID + PublicKeyHash (last 8 bytes) → SymID` and removed internal construction-function references from the public specification |
 | v0.5 | 2026-05-15 | Added publicly reproducible SymID field sizes and hash rule: `Version = 2 bits`, `ChainID = 14 bits`, and `PublicKeyHash = last 8 bytes of SHA3-256(public key)` |
+| v0.6 | 2026-05-15 | Clarified that SymID is used as the chain-bound unique account key across account lookup, transaction identification, Citizen registration, and verification flows |
