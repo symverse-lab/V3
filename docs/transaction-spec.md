@@ -1,6 +1,6 @@
 # SymVerse V3 Transaction Specification
 
-> **Status:** Draft v0.1  
+> **Status:** Draft v0.2  
 > **Date:** 2026-05-15  
 > **Document Role:** Baseline transaction specification for SymVerse transaction fields, signing flow, transaction types, and deposit policy  
 > **Source Basis:** Existing SymVerse Transaction documentation
@@ -17,6 +17,7 @@ This document summarizes the existing SymVerse transaction baseline:
 - Smart contract creation and call
 - SCT transaction
 - Deposit transaction
+- Citizen Protocol transaction
 - Common transaction fields
 - Gas calculation
 - Signing process
@@ -29,6 +30,7 @@ The transaction type determines the processing path.
 | `0` | General transaction |
 | `1` | SCT transaction |
 | `2` | Deposit transaction |
+| `11` | Citizen Protocol transaction |
 
 If `type` is omitted, the transaction is treated as a general transaction by default.
 
@@ -76,6 +78,30 @@ type = 2
 
 ---
 
+## 2.4 Citizen Protocol Transaction
+
+Citizen Protocol transactions are used for runtime Citizen state changes such as:
+
+- Nick creation and deletion
+- Referrer creation and deletion
+- Link creation and deletion
+
+The Citizen Protocol transaction type is:
+
+```text
+type = 11
+```
+
+where:
+
+```text
+TxTypeCitizen = 11
+```
+
+Citizen Protocol transactions are ordinary blockchain transactions with a Citizen-specific payload and execution rule.
+
+---
+
 # 3. Transaction Data
 
 ## 3.1 Common Parameters
@@ -114,6 +140,7 @@ The `type` field selects the transaction usage.
 | `0` | General transaction |
 | `1` | SCT transaction |
 | `2` | Deposit transaction |
+| `11` | Citizen Protocol transaction |
 
 If `type` is not specified, it defaults to:
 
@@ -645,9 +672,202 @@ sym.getDeposit("0x0002A000000000010002")
 
 ---
 
-# 9. Deposit Policy
+# 9. Type `11` — Citizen Protocol Transaction
 
-## 9.1 Deposit Set Policy
+## 9.1 Meaning
+
+When:
+
+```text
+type = 11
+```
+
+the transaction is a Citizen Protocol transaction.
+
+The transaction type constant is:
+
+```text
+TxTypeCitizen = 11
+```
+
+Citizen Protocol transactions are used to change post-registration Citizen runtime state.
+
+Supported operation families include:
+
+- Nick
+- Referrer
+- Link
+
+---
+
+## 9.2 Core Transaction Rule
+
+A Citizen Protocol transaction MUST satisfy:
+
+```text
+from == to
+```
+
+| Field | Meaning |
+|---|---|
+| `from` | Citizen operation submitter |
+| `to` | Citizen whose runtime state is changed |
+
+The sender may change only their own Citizen runtime state.
+
+| Example | Result |
+|---|---|
+| `from = addrA`, `to = addrA` | Valid form |
+| `from = addrA`, `to = addrB` | Invalid form |
+
+---
+
+## 9.3 Gas Fee
+
+Citizen Protocol transactions consume **Gas Fee**.
+
+This applies to operations such as:
+
+- `CreateNick`
+- `DeleteNick`
+- `CreateReferrer`
+- `DeleteReferrer`
+- `CreateLink`
+- `DeleteLink`
+
+Protocol principle:
+
+```text
+Any post-registration Citizen runtime state change
+is an on-chain transaction and consumes Gas Fee.
+```
+
+---
+
+## 9.4 Citizen Protocol Transaction Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `from` | address | Citizen operation submitter |
+| `nonce` | integer | Sender transaction count |
+| `gasPrice` | integer | Gas price per unit |
+| `gas` | integer | Gas limit |
+| `to` | address | MUST be the same address as `from` |
+| `value` | integer | Usually `0` for pure Citizen runtime operations |
+| `input` | bytes | Encoded Citizen operation payload |
+| `type` | integer | `11` for Citizen Protocol transaction |
+| `workNodes` | address array | Relay work node list |
+| `extraData` | bytes | Additional data |
+
+---
+
+## 9.5 Citizen Operation Payload
+
+The `input` field contains an encoded Citizen operation payload.
+
+The externally meaningful payload fields are:
+
+| Field | Meaning |
+|---|---|
+| `Op` | Citizen operation code |
+| `Domain` | Citizen protocol domain |
+| `Nick` | Nick to create, or Link target Nick, depending on operation |
+| `RefCode` | Input RefCode used to create a Referrer relation |
+| `Sponsor` | Reserved by current policy; not used for Link registration |
+| `Extra` | Reserved extension field |
+
+---
+
+## 9.6 Supported Citizen Operations
+
+| Public Operation | Purpose |
+|---|---|
+| `CreateNick` | Create the sender’s current Nick |
+| `DeleteNick` | Delete the sender’s current Nick |
+| `CreateReferrer` | Register the sender’s Referrer using an input RefCode |
+| `DeleteReferrer` | Delete the sender’s current Referrer |
+| `CreateLink` | Create a Link to the target Citizen resolved from Nick |
+| `DeleteLink` | Delete a Link to the target Citizen resolved from Nick |
+
+The following are not Citizen Protocol transaction operations:
+
+| Operation | Status |
+|---|---|
+| `UpdateNick` | Not supported |
+| `CreateRefCode` | Not supported |
+| `UpdateRefCode` | Not supported |
+| `DeleteRefCode` | Not supported |
+
+---
+
+## 9.7 Wrapper Functions
+
+Convenience functions may be exposed on top of the standard Citizen Protocol transaction.
+
+Examples include:
+
+- `CreateNick`
+- `DeleteNick`
+- `CreateReferrer`
+- `DeleteReferrer`
+- `CreateLink`
+- `DeleteLink`
+
+These wrappers are convenience methods.  
+The underlying protocol transaction remains:
+
+```text
+type  = TxTypeCitizen(11)
+from  = sender
+to    = sender
+input = encoded Citizen operation payload
+```
+
+---
+
+## 9.8 Conceptual Example — CreateNick Transaction
+
+```text
+Citizen Protocol transaction:
+  from  = addrA
+  to    = addrA
+  value = 0
+  type  = 11
+  input = Citizen operation payload with Op = CreateNick
+```
+
+Equivalent wrapper-style intent:
+
+```text
+CreateNick(
+  sender = addrA,
+  nick = "addra01"
+)
+```
+
+---
+
+## 9.9 Relationship to Citizen Protocol Specification
+
+Detailed rules for:
+
+- Nick validation,
+- Referrer state transitions,
+- Link / LinkedBy semantics,
+- direct transfer to Nick,
+- Credit behavior,
+
+are defined in:
+
+```text
+citizen-protocol-spec.md
+```
+
+---
+
+# 10. Deposit Policy
+
+## 10.1 Deposit Set Policy
 
 A user may set a deposit for their own account at any time.
 
@@ -660,7 +880,7 @@ A deposit set transaction may be submitted repeatedly if the balance is sufficie
 
 ---
 
-## 9.2 Deposit Restoration Policy
+## 10.2 Deposit Restoration Policy
 
 A user may restore a deposit for their own account at any time, subject to restoration restrictions.
 
@@ -671,7 +891,7 @@ When a deposit restoration transaction succeeds:
 
 ---
 
-## 9.3 Restrictions on Deposit Restoration
+## 10.3 Restrictions on Deposit Restoration
 
 Deposit restoration fails when the account is actively serving in restricted protocol roles.
 
@@ -683,14 +903,13 @@ Restrictions include:
 
 ---
 
-# 10. V3 Extension Note
+# 11. V3 Extension Note
 
-This specification records the existing baseline SymVerse transaction model.
+This specification records the existing baseline SymVerse transaction model and includes the `type = 11` Citizen Protocol transaction extension.
 
-V3-related extensions such as:
+Additional V3-related extensions such as:
 
 - CAD transaction structure,
-- Citizen Protocol transaction type,
 - PQC signature-bearing transaction variants,
 - CADFork-era authorization flow,
 
@@ -698,8 +917,9 @@ should be specified in later dedicated revisions or companion documents so that 
 
 ---
 
-# 11. Revision History
+# 12. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
 | v0.1 | 2026-05-15 | Initial baseline transaction specification drafted from the existing SymVerse Transaction documentation |
+| v0.2 | 2026-05-15 | Added `type = 11` Citizen Protocol transaction, including `TxTypeCitizen`, `from == to` rule, Gas Fee statement, Citizen payload fields, supported operation families, wrapper-function interpretation, and cross-reference to the Citizen Protocol Specification |
