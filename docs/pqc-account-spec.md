@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.11  
+> **Status:** Draft v0.12  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -319,44 +319,7 @@ This rule allows any implementation to derive the same SymID from the same:
 - Version,
 - ChainID.
 
----
-
-## 4.5 Input Validation
-
-SymID derivation MUST reject invalid input.
-
-| Condition | Result |
-|---|---|
-| Public key is empty | Reject |
-| Version is outside the supported version policy | Reject |
-| `ChainID` is empty | Reject |
-
----
-
-## 4.6 Not Address-plus-Nonce Derivation
-
-The V3 SymID derivation rule MUST NOT be confused with:
-
-```text
-address + nonce
-```
-
-style address derivation.
-
-SymID is derived from the public-key hash component together with Version and ChainID, as defined in this section.
-
----
-
-## 4.7 Same Composition for ECDSA and PQC
-
-The same SymID composition policy applies to:
-
-- ECDSA public keys,
-- ML-DSA public keys,
-- future PQC public keys supported by the chain.
-
-The public-key material differs by algorithm.  
-The SymID composition does not.
+These composition rules define the Version `1` PQCFork-era SymID format.
 
 ---
 
@@ -892,3 +855,4 @@ The exact RPC field names are defined in the related API specifications.
 | v0.9 | 2026-05-15 | Replaced the algorithm-code example table with a clearer rule: ECDSA and ML-DSA both provide public keys, and both follow the same SymID composition path using the last 8 bytes of `SHA3-256(public key)` |
 | v0.10 | 2026-05-15 | Removed non-V3 legacy prefix commentary and clarified that Citizen Protocol identifiers such as Nick, RefCode, Referrer, and Link are user-facing convenience layers that resolve to and operate over underlying SymID-backed blockchain accounts |
 | v0.11 | 2026-05-15 | Expanded the Version `0` Legacy SymID section to preserve the historical Account Document fields, Citizen ID / CA ID / Random / SeqNum model, Legacy account-field semantics, and representative Legacy SymID structure examples while keeping them separate from the Version `1` PQCFork-era composition rule |
+| v0.12 | 2026-05-15 | Simplified the Version `1` SymID composition section by removing non-essential implementation-adjacent explanatory subsections, leaving a more concise specification centered on field layout and public-key-hash derivation |
