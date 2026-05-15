@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.8  
+> **Status:** Draft v0.9  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -975,7 +975,7 @@ RefCode creation does not increase Credit because it is assigned automatically a
 The Citizen Protocol exposes two externally important transaction surfaces:
 
 1. **direct coin transfer by Nick**, and
-2. **Citizen operations** for Nick, Referrer, and Link state.
+2. **Citizen runtime operation transactions** for Nick, Referrer, and Link state.
 
 ---
 
@@ -1021,11 +1021,14 @@ These APIs are externally significant because they allow users to transfer coins
 
 ---
 
-## 11.2 Direct Citizen Transaction Type
+## 11.2 Citizen Runtime Operation Transaction
 
-Citizen runtime operations such as Nick, Referrer, and Link changes may be submitted as direct Citizen transactions.
+Nick, Referrer, and Link changes are **Citizen runtime operations**.  
+They are submitted as ordinary blockchain transactions with a Citizen-specific transaction type.
 
-When constructing such a transaction directly:
+### 11.2.1 Transaction Type
+
+Every Citizen runtime operation transaction MUST use:
 
 ```text
 type = 11
@@ -1037,28 +1040,135 @@ where:
 TxTypeCitizen = 11
 ```
 
-The transaction input payload carries the Citizen operation data.
+This transaction type identifies the transaction as a Citizen Protocol state-change transaction.
 
-Conceptual transaction layout:
+---
+
+### 11.2.2 Sender and Target Address Rule
+
+For Citizen runtime operations:
+
+```text
+from == to
+```
+
+MUST hold.
+
+| Field | Meaning |
+|---|---|
+| `from` | Address submitting the Citizen operation |
+| `to` | Address whose Citizen runtime state is being changed |
+
+The protocol rule is:
+
+```text
+The submitter and the changed Citizen address must be identical.
+```
+
+Examples:
+
+| Case | Result |
+|---|---|
+| `from = addrA`, `to = addrA` | Valid form |
+| `from = addrA`, `to = addrB` | Invalid form |
+
+This rule ensures that a Citizen runtime operation changes only the sender’s own Citizen runtime state.
+
+---
+
+### 11.2.3 Gas Fee
+
+Citizen runtime operation transactions consume **Gas Fee**.
+
+This applies to:
+
+- `CreateNick`
+- `DeleteNick`
+- `CreateReferrer`
+- `DeleteReferrer`
+- `CreateLink`
+- `DeleteLink`
+
+Protocol principle:
+
+```text
+Every post-registration Citizen runtime state change
+is an on-chain transaction and consumes Gas Fee.
+```
+
+---
+
+### 11.2.4 Standard Transaction Layout
+
+A direct Citizen runtime operation transaction follows the ordinary transaction shape, with:
+
+- `type = 11`
+- `from == to`
+- `input` containing the encoded Citizen operation payload
 
 | Transaction Field | Meaning |
 |---|---|
-| `from` | Sender address |
+| `from` | Citizen operation submitter |
+| `to` | Same address as `from` |
 | `nonce` | Sender account nonce |
 | `gasPrice` | Gas price |
 | `gas` | Gas limit |
-| `to` | Recipient field as required by the transaction format |
-| `value` | Transfer value, usually zero for pure Citizen state operations |
+| `value` | Usually `0` for pure Citizen runtime operations |
 | `input` | Encoded Citizen operation payload |
-| `type` | `11` for `TxTypeCitizen` |
+| `type` | `11` (`TxTypeCitizen`) |
 
-Because these are on-chain state-changing transactions, they consume Gas Fee.
+Conceptual example:
+
+```text
+Citizen runtime operation transaction:
+  from  = addrA
+  to    = addrA
+  value = 0
+  type  = 11
+  input = EncodeCitizenOperationPayload(...)
+```
+
+---
+
+### 11.2.5 Wrapper Functions
+
+Convenience APIs or wrapper functions such as:
+
+- `CreateNick`
+- `DeleteNick`
+- `CreateReferrer`
+- `DeleteReferrer`
+- `CreateLink`
+- `DeleteLink`
+
+may be implemented by constructing and submitting the standard Citizen runtime operation transaction described above.
+
+In other words:
+
+```text
+CreateNick(...)
+```
+
+is a convenience wrapper over a transaction equivalent to:
+
+```text
+type  = TxTypeCitizen(11)
+from  = sender
+to    = sender
+input = Citizen operation payload with Op = CreateNick
+```
+
+The wrapper may simplify client usage, but the underlying protocol rule remains the same:
+
+```text
+Citizen runtime changes are performed through TxTypeCitizen(11) transactions.
+```
 
 ---
 
 ## 11.3 Citizen Payload Fields
 
-A Citizen transaction carries a Citizen operation payload with the following externally relevant fields:
+A Citizen runtime operation transaction carries a Citizen operation payload with the following externally relevant fields:
 
 | Field | Meaning |
 |---|---|
@@ -1306,3 +1416,4 @@ DeleteLink
 | v0.6 | 2026-05-15 | Moved NickName policy ahead of RefCode policy and expanded NickName into a user-facing domain-label specification with allowed/prohibited characters, hyphen rules, 6–63 character range, normalization examples, validation regex, and valid/invalid nickname examples |
 | v0.7 | 2026-05-15 | Reduced Nick maximum length to 32 characters, clarified that `NickName` is only the initial Citizen registration term while post-registration operations use `Nick`, renamed lifecycle operations to `CreateNick` and `DeleteNick`, and documented that all post-registration Citizen runtime state changes consume Gas Fee |
 | v0.8 | 2026-05-15 | Renamed the public direct Citizen transaction type to `TxTypeCitizen = 11`, reframed post-registration operations as Citizen transactions, and clarified that `SendTransactionToNick` and `SendRawTransactionToNick` are `to`-destination variants where address input is replaced by Nick input |
+| v0.9 | 2026-05-15 | Rewrote Citizen runtime operation submission as a normative protocol rule: `TxTypeCitizen = 11`, `from == to`, Gas Fee consumption, standard transaction layout, and wrapper-function interpretation for `CreateNick`, `DeleteNick`, `CreateReferrer`, and Link operations |
