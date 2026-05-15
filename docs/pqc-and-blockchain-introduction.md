@@ -652,63 +652,98 @@ This distinction matters for blockchain adoption:
 
 ---
 
-## 8.4 Falcon Adoption in Blockchain and the CAD Perspective
+## 8.4 Falcon in Blockchains, and Why CAD Changes the Decision
 
-Falcon has attracted strong interest in blockchain-oriented post-quantum work because its signatures are much smaller than those of ML-DSA and SLH-DSA.
+Falcon is important to discuss in a blockchain document because it represents the **compact-signature direction** within post-quantum signatures.
+
+Among widely discussed NIST-selected PQC signature families:
+
+- Falcon signatures are much smaller than ML-DSA and SLH-DSA signatures,
+- `Falcon-512` targets **NIST Security Level 1**,
+- `Falcon-512` signatures are roughly **10 times larger** than a familiar 65-byte ECDSA transaction-signature baseline,
+- and **FN-DSA / FIPS 206**, the NIST standard based on Falcon, is **still under development** rather than finalized.
+
+| Item | Falcon-512 |
+|---|---:|
+| NIST Security Level | Level 1 |
+| Public key | 897 bytes |
+| Private key | 1,281 bytes |
+| Signature | 666 bytes |
+| Relative to 65-byte ECDSA signature | ~10.2× larger |
+| NIST standardization status | Falcon selected; FN-DSA / FIPS 206 still in development |
+
+---
+
+### 8.4.1 Why Falcon Has Attracted Blockchain Attention
+
+Falcon has received attention in blockchain-oriented PQC work because its signatures are compact relative to other PQC signature candidates.
 
 Recent public examples include:
 
-- **Algorand**, which has demonstrated Falcon-based post-quantum transaction work on mainnet,
-- **Solana ecosystem research**, where Anza and Firedancer independently explored Falcon as a compact post-quantum signature path for high-throughput blockchain use.
+- **Algorand**, which demonstrated a **Falcon-signed post-quantum transaction on mainnet** in November 2025. Its public technical brief also uses `Falcon-1024` in the step-by-step developer walkthrough and notes ongoing Falcon-based post-quantum work.
+- **Solana ecosystem research**, where Anza and Firedancer independently explored Falcon as a compact post-quantum signature direction for high-throughput blockchain use.
 
-These examples show why Falcon is appealing:
+These projects make the attraction easy to understand:
 
 ```text
-When the blockchain keeps raw PQC signatures in transaction and ledger structures,
-smaller signatures look immediately attractive.
+When a blockchain keeps raw PQC signatures inside transaction and ledger structures,
+the smallest available PQC signature family becomes immediately appealing.
 ```
 
-However, from the SymVerse V3 and CAD perspective, this also reveals an architectural limitation.
+---
 
-If a blockchain selects Falcon primarily because:
+### 8.4.2 The Architectural Limitation of Choosing Mainly by Signature Size
 
-- raw signature bytes remain embedded in transaction data,
+Falcon is a legitimate and important PQC signature family.  
+However, from the SymVerse V3 and CAD perspective, a blockchain should be cautious about choosing its long-term cryptographic posture **primarily because one algorithm has the smallest raw signature**.
+
+That selection pressure often appears when:
+
+- raw signature bytes remain embedded in transaction or ledger structures,
 - block propagation and storage remain directly sensitive to signature size,
-- and the commitment model itself is not redesigned,
+- and the commitment model itself is not redesigned.
 
-then the choice is still being driven by the **old signature-committing blockchain architecture**.
-
-SymVerse V3 takes a different position:
-
-```text
-The protocol should not be forced to choose its long-term security recommendation
-mainly by whichever PQC signature happens to be smallest.
-```
-
-This is where **CAD** becomes important.
-
-CAD changes the problem from:
+In that setting, the question becomes:
 
 ```text
 Which PQC signature is small enough to fit the existing commitment model?
 ```
 
-to:
+CAD changes the question to:
 
 ```text
 How should consensus commit authorization outcomes
 without hard-coding itself to raw signature size?
 ```
 
-For SymVerse V3 documentation, Falcon is therefore useful for four reasons:
+This is a crucial distinction.
 
-1. it is a major NIST-selected PQC signature family,
-2. it demonstrates that PQC signature sizes vary significantly by algorithm,
-3. it illustrates why some blockchain designs are naturally attracted to compact signatures when they retain traditional signature-committing structures,
-4. it strengthens the CAD argument that a blockchain architecture should not hard-code its consensus commitment model around one signature family or select its long-term security posture mainly from raw signature size.
+---
 
-In this sense, Falcon-centered blockchain adoption is not “wrong,” but it often reflects a design path that **optimizes within the pre-CAD commitment model**.  
-SymVerse V3 aims to move beyond that constraint by adopting CAD and, after CADFork, recommending **ML-DSA-87** for its stronger long-term security level.
+### 8.4.3 SymVerse Position: CAD First, Signature Choice Second
+
+SymVerse V3 takes the following architectural position:
+
+1. **CADFork** should first remove raw signature size from the consensus commitment problem.
+2. After CADFork, SymVerse plans to recommend **ML-DSA-87**, which provides **NIST Security Level 5**.
+3. Once **FN-DSA / FIPS 206** is finalized, SymVerse may also introduce Falcon-family support because:
+   - Falcon remains a major NIST-selected PQC signature family,
+   - its compact signatures may be useful for some application or wallet contexts,
+   - and **CAD is designed to support any PQC signature scheme**, rather than hard-coding the chain to one signature family.
+
+In other words:
+
+```text
+SymVerse does not reject Falcon.
+SymVerse rejects letting raw signature size dictate the blockchain's long-term security architecture.
+```
+
+This is why the CAD model matters.  
+It allows SymVerse to:
+
+- recommend a stronger default such as **ML-DSA-87** after CADFork,
+- remain open to **Falcon / FN-DSA** after standardization is completed,
+- and preserve algorithm agility because the consensus commitment path is not tied to one PQC signature size.
 
 ---
 
@@ -975,3 +1010,4 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 | v0.9 | 2026-05-15 | Added Google Quantum AI / Ethereum Foundation / Stanford / UC Berkeley whitepaper discussion, updated secp256k1 resource estimates, 20-fold physical-qubit reduction framing, zero-knowledge-proof disclosure note, and fast-clock on-spend attack implications |
 | v0.10 | 2026-05-15 | Condensed the Google Quantum AI discussion into a general-reader summary, kept only the most relevant resource estimates, and reframed the blockchain implication around public-key exposure and early migration |
 | v0.11 | 2026-05-15 | Replaced the technical `x || y` raw-public-key notation with a reader-friendly explanation: 32-byte x-coordinate + 32-byte y-coordinate |
+| v0.12 | 2026-05-15 | Reframed the Falcon blockchain discussion around Falcon-512 size/security, unfinished FN-DSA standardization, CAD-driven algorithm agility, and SymVerse’s plan to recommend ML-DSA-87 after CADFork while remaining open to Falcon after final standardization |
