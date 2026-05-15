@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.5  
+> **Status:** Draft v0.6  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -165,51 +165,11 @@ A RefCode:
 
 ---
 
-# 5. RefCode Policy
+# 5. NickName Policy
 
-## 5.1 Meaning
+## 5.1 Why NickName Is Central to the Citizen Protocol
 
-`RefCode` is the Citizen’s permanent referral code.
-
-It is assigned automatically when a Citizen is confirmed and may be used by another Citizen to create a Referrer relation.
-
----
-
-## 5.2 RefCode lifecycle
-
-| Action | Allowed? |
-|---|---:|
-| Automatic assignment at Citizen confirmation | Yes |
-| User-selected value | No |
-| Transaction create | No |
-| Transaction update | No |
-| Transaction delete | No |
-
-RefCode is a protocol-assigned, immutable Citizen property.
-
----
-
-## 5.3 Public display format
-
-A RefCode may be displayed in a compact user-facing `ownCode` form.
-
-| RefCode | Full format | Display `ownCode` |
-|---:|---|---|
-| 4096 | `0000-0000-4096` | `4096` |
-| 8192 | `0000-0000-8192` | `8192` |
-| 8193 | `0000-0000-8193` | `8193` |
-| 12289 | `0000-0001-2289` | `0001-2289` |
-| 100002289 | `0001-0000-2289` | `0001-0000-2289` |
-
-The display format is intended to make Citizen referral codes easier to read and share.
-
----
-
-# 6. NickName Policy
-
-## 6.1 Why NickName Is Central to the Citizen Protocol
-
-`NickName` is the primary public alias of a Citizen.
+`NickName` is the primary public identifier of a Citizen.
 
 The Citizen Protocol is designed around NickName because it provides:
 
@@ -217,6 +177,7 @@ The Citizen Protocol is designed around NickName because it provides:
 - a globally unique public lookup key within the blockchain,
 - a stable input for Citizen discovery,
 - the basis for NickName-driven Link creation,
+- a direct destination for coin transfer,
 - a user-facing identity layer distinct from raw blockchain addresses.
 
 In practical terms:
@@ -243,7 +204,7 @@ That capability is exposed through dedicated transfer APIs such as:
 
 ---
 
-## 6.2 NickName as a Unique Blockchain Key
+## 5.2 NickName as a Unique Blockchain Key
 
 A valid NickName must be unique within the Citizen protocol domain.
 
@@ -255,7 +216,8 @@ At any given state:
 
 - the same NickName cannot be owned by multiple Citizens,
 - a Citizen query by NickName must resolve to a single owner,
-- Link operations using NickName must resolve to exactly one target Citizen.
+- Link operations using NickName must resolve to exactly one target Citizen,
+- NickName-based coin transfer must resolve to exactly one recipient Citizen.
 
 This uniqueness is fundamental to the Citizen Protocol.
 
@@ -270,66 +232,164 @@ If another Citizen attempts to register the same NickName, the operation must be
 
 ---
 
-## 6.3 Domain-Label Style NickName Rule
+## 5.3 Domain-Label Style NickName Rule
 
 NickName follows a **domain-label style rule**.
 
-The purpose is to ensure that NickNames are:
+This means that a NickName behaves like a compact, single-label public identifier rather than an arbitrary free-form display name.
+
+The rule is designed to make NickNames:
 
 - simple to type,
+- easy to share,
 - predictable to normalize,
 - safe to use as protocol keys,
-- suitable for use in public lookup and relationship operations.
+- usable in direct transfer and Link operations.
 
-The baseline NickName rule is:
+### 5.3.1 Allowed characters
+
+A NickName may contain only:
+
+| Character Type | Allowed? | Example |
+|---|---:|---|
+| Lowercase letters `a-z` | Yes | `citizen` |
+| Digits `0-9` | Yes | `target01` |
+| Hyphen `-` | Yes, with position restrictions | `alpha-01` |
+| Underscore `_` | No | `alpha_01` rejected |
+| Space | No | `alpha 01` rejected |
+| Dot `.` | No | `alpha.01` rejected |
+| Uppercase letters | Normalized to lowercase before validation | `Target01` → `target01` |
+| Korean / non-ASCII letters | Not allowed in the baseline rule | rejected |
+| Other symbols such as `@`, `#`, `!` | No | rejected |
+
+---
+
+### 5.3.2 Length rule
 
 | Rule | Policy |
 |---|---|
 | Minimum length | 6 characters |
-| Leading/trailing spaces | Removed |
-| Case handling | Normalized to lowercase |
-| Empty string | Rejected |
-| Protocol role | Unique Citizen lookup key |
+| Maximum length | 63 characters |
 
-The minimum length of **6 characters** is important.  
-It prevents overly short labels and keeps NickNames closer to a domain-label-style public identifier than a casual one- or two-character alias.
-
-Examples of valid fixture-style NickNames:
-
-```text
-addra01
-bddra01
-target01
-second01
-```
+The minimum length of **6 characters** prevents overly short and ambiguous labels.  
+The maximum length of **63 characters** follows the familiar size boundary of a single DNS-style label.
 
 ---
 
-## 6.4 NickName Normalization
+### 5.3.3 Hyphen rule
 
-Before a NickName is registered or used as a transaction input, it is normalized.
+Hyphen `-` is allowed only inside the NickName.
+
+| NickName | Valid? | Reason |
+|---|---:|---|
+| `alpha-01` | Yes | Hyphen is internal |
+| `-alpha01` | No | Cannot start with hyphen |
+| `alpha01-` | No | Cannot end with hyphen |
+
+The baseline policy allows an internal hyphen, including multiple internal hyphens, as long as the NickName still matches the overall validation rule.
+
+---
+
+### 5.3.4 Normalization rule
+
+Before uniqueness checks or protocol use, NickName input is normalized.
 
 Normalization policy:
 
 ```text
 1. Trim leading and trailing spaces
 2. Convert to lowercase
-3. Validate minimum length
+3. Validate with the NickName rule
 ```
 
 Examples:
 
-| Input | Normalized Value |
-|---|---|
-| `" Target01 "` | `target01` |
-| `"ADDRA01"` | `addra01` |
-| `" abc "` | rejected because normalized length is below 6 |
+| User Input | Normalized Value | Result |
+|---|---|---|
+| `" Target01 "` | `target01` | Valid |
+| `"ADDRA01"` | `addra01` | Valid |
+| `" Alpha-01 "` | `alpha-01` | Valid |
+| `" abc "` | `abc` | Rejected: fewer than 6 characters |
 
-Normalization ensures that logically equivalent NickNames do not create duplicate registry keys.
+Normalization ensures that logically equivalent values do not create different ownership keys.
+
+For example:
+
+```text
+"Target01"
+" target01 "
+"TARGET01"
+```
+
+all normalize to:
+
+```text
+target01
+```
+
+and therefore refer to the same NickName key.
 
 ---
 
-## 6.5 Citizen Creation with NickName
+## 5.4 Recommended Validation Regex
+
+A reader-friendly validation rule may be expressed as:
+
+```regex
+^[a-z0-9](?:[a-z0-9-]{4,61}[a-z0-9])$
+```
+
+This regex enforces:
+
+- total length of 6 to 63 characters,
+- first character must be `a-z` or `0-9`,
+- last character must be `a-z` or `0-9`,
+- middle characters may be `a-z`, `0-9`, or `-`,
+- `_`, `.`, spaces, and other symbols are rejected.
+
+### 5.4.1 Regex interpretation
+
+| Regex Part | Meaning |
+|---|---|
+| `^` | Start of string |
+| `[a-z0-9]` | First character must be lowercase letter or digit |
+| `(?:[a-z0-9-]{4,61}[a-z0-9])` | Middle and final portion; ensures total length and final alphanumeric character |
+| `$` | End of string |
+
+---
+
+## 5.5 NickName Examples
+
+### 5.5.1 Valid examples
+
+| NickName | Why valid |
+|---|---|
+| `addra01` | 7 characters, lowercase letters and digits |
+| `target01` | 8 characters, lowercase letters and digits |
+| `second01` | 8 characters, lowercase letters and digits |
+| `alpha-01` | Internal hyphen allowed |
+| `citizen-2026` | Letters, digits, internal hyphen |
+| `node001` | Minimum-length-compatible alphanumeric label |
+
+---
+
+### 5.5.2 Invalid examples
+
+| NickName | Why rejected |
+|---|---|
+| `abc` | Fewer than 6 characters |
+| `_alpha01` | Underscore not allowed |
+| `alpha_01` | Underscore not allowed |
+| `alpha.01` | Dot not allowed |
+| `alpha 01` | Space not allowed |
+| `-alpha01` | Cannot start with hyphen |
+| `alpha01-` | Cannot end with hyphen |
+| `알파001` | Non-ASCII characters not allowed under baseline rule |
+| `alpha@01` | Symbol `@` not allowed |
+
+---
+
+## 5.6 Citizen Creation with NickName
 
 A Citizen may receive an initial NickName at confirmation.
 
@@ -347,7 +407,7 @@ Citizen A is confirmed with NickName "addra01"
 
 ---
 
-## 6.6 CreateNickName
+## 5.7 CreateNickName
 
 `CreateNickName` is allowed only if the Citizen currently has no NickName.
 
@@ -364,7 +424,7 @@ The requested NickName must:
 
 ---
 
-## 6.7 DeleteNickName
+## 5.8 DeleteNickName
 
 `DeleteNickName` is allowed only if the Citizen currently has a NickName.
 
@@ -383,7 +443,7 @@ After deletion:
 
 ---
 
-## 6.8 NickName Change Process
+## 5.9 NickName Change Process
 
 NickName does **not** support direct update.
 
@@ -418,7 +478,7 @@ This explicit two-step process keeps NickName ownership changes clear and audita
 
 ---
 
-## 6.9 Direct Coin Transfer to NickName
+## 5.10 Direct Coin Transfer to NickName
 
 A NickName can act as a human-readable transfer destination.
 
@@ -456,7 +516,7 @@ Send coins to a long raw address string
 
 ---
 
-### 6.9.1 `SendTransactionToNick`
+### 5.10.1 `SendTransactionToNick`
 
 `SendTransactionToNick` is used when a wallet, console, or RPC client submits a normal transaction by NickName.
 
@@ -488,7 +548,7 @@ to the Citizen who owns NickName "target01".
 
 ---
 
-### 6.9.2 `SendRawTransactionToNick`
+### 5.10.2 `SendRawTransactionToNick`
 
 `SendRawTransactionToNick` is used when the sender prepares or signs a transaction externally and submits the raw transaction using a NickName destination.
 
@@ -525,7 +585,7 @@ NickName must be usable as a direct transfer destination.
 
 ---
 
-### 6.9.3 Why This Is a Distinctive Citizen Protocol Capability
+### 5.10.3 Why This Is a Distinctive Citizen Protocol Capability
 
 NickName-based transfer is more than a cosmetic convenience.
 
@@ -542,7 +602,7 @@ This makes NickName one of the most important externally visible features of the
 
 ---
 
-## 6.10 NickName Use in Link Operations
+## 5.11 NickName Use in Link Operations
 
 NickName is also the target identifier for Link creation and deletion.
 
@@ -561,7 +621,7 @@ This is another reason NickName uniqueness is foundational to the Citizen Protoc
 
 ---
 
-## 6.11 NickName Validation Scope
+## 5.12 NickName Validation Scope
 
 The NickName validation rule applies to:
 
@@ -573,6 +633,46 @@ The NickName validation rule applies to:
 - `SendRawTransactionToNick`.
 
 `DeleteNickName` acts on the Citizen’s current NickName and therefore does not require a NickName input.
+
+---
+
+# 6. RefCode Policy
+
+## 6.1 Meaning
+
+`RefCode` is the Citizen’s permanent referral code.
+
+It is assigned automatically when a Citizen is confirmed and may be used by another Citizen to create a Referrer relation.
+
+---
+
+## 6.2 RefCode lifecycle
+
+| Action | Allowed? |
+|---|---:|
+| Automatic assignment at Citizen confirmation | Yes |
+| User-selected value | No |
+| Transaction create | No |
+| Transaction update | No |
+| Transaction delete | No |
+
+RefCode is a protocol-assigned, immutable Citizen property.
+
+---
+
+## 6.3 Public display format
+
+A RefCode may be displayed in a compact user-facing `ownCode` form.
+
+| RefCode | Full format | Display `ownCode` |
+|---:|---|---|
+| 4096 | `0000-0000-4096` | `4096` |
+| 8192 | `0000-0000-8192` | `8192` |
+| 8193 | `0000-0000-8193` | `8193` |
+| 12289 | `0000-0001-2289` | `0001-2289` |
+| 100002289 | `0001-0000-2289` | `0001-0000-2289` |
+
+The display format is intended to make Citizen referral codes easier to read and share.
 
 ---
 
@@ -987,7 +1087,16 @@ RefCode = immutable deterministic code assigned at Citizen confirmation
 
 - Core public Citizen identifier.
 - Globally unique Citizen lookup key within the protocol domain.
-- Minimum 6-character domain-label-style rule.
+- Domain-label-style rule:
+  - 6 to 63 characters
+  - lowercase letters, digits, and internal hyphen only
+  - `_`, `.`, spaces, and other symbols rejected
+- Recommended validation regex:
+
+```regex
+^[a-z0-9](?:[a-z0-9-]{4,61}[a-z0-9])$
+```
+
 - May be registered during Citizen confirmation.
 - May be created by transaction only if no NickName exists.
 - Can be used as a direct coin-transfer destination through:
@@ -1052,3 +1161,4 @@ DeleteLink
 | v0.3 | 2026-05-15 | Rewritten as a public-facing protocol specification by removing internal storage layout, internal function names, block-processing insertion details, and simulator validation procedures while strengthening external operation rules and public query behavior |
 | v0.4 | 2026-05-15 | Simplified RefCode presentation by removing implementation-oriented derivation details and substantially expanded NickName as the core Citizen identifier, including uniqueness, domain-label-style validation, normalization, lifecycle, change process, and Link resolution role |
 | v0.5 | 2026-05-15 | Added NickName-based direct coin transfer as a core Citizen Protocol capability, including `SendTransactionToNick`, `SendRawTransactionToNick`, conceptual usage examples, validation scope, and public API significance |
+| v0.6 | 2026-05-15 | Moved NickName policy ahead of RefCode policy and expanded NickName into a user-facing domain-label specification with allowed/prohibited characters, hyphen rules, 6–63 character range, normalization examples, validation regex, and valid/invalid nickname examples |
