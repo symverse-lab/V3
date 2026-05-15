@@ -1,6 +1,6 @@
 # SymVerse V3 Transaction Specification
 
-> **Status:** Draft v0.5  
+> **Status:** Draft v0.6  
 > **Date:** 2026-05-15  
 > **Document Role:** Baseline transaction specification for SymVerse transaction fields, signing flow, transaction types, and deposit policy  
 > **Source Basis:** Existing SymVerse Transaction documentation
@@ -773,7 +773,7 @@ The payload carries the following protocol-level fields:
 | `Domain` | Citizen protocol domain |
 | `Nick` | Nick to create, or Link target Nick, depending on operation |
 | `RefCode` | Input RefCode used to create a Referrer relation |
-| `Sponsor` | Reserved by current policy; not used for Link registration |
+| `Link` | Reserved by current policy; Link registration uses `Nick`, not a direct address |
 | `Extra` | Reserved extension field |
 
 The key field is:
@@ -842,7 +842,7 @@ The operation values remain authoritative for transaction payload construction.
 
 ## 9.8 Payload Field Usage by Operation
 
-| Public Citizen Action | `Op` | `Nick` | `RefCode` | `Sponsor` | Description |
+| Public Citizen Action | `Op` | `Nick` | `RefCode` | `Link` | Description |
 |---|---|---|---|---|---|
 | `CreateNick` | `CitizenOpCreateNickName` | Nick to register | unused | unused | Create the sender’s current Nick |
 | `DeleteNick` | `CitizenOpDeleteNickName` | unused | unused | unused | Delete the sender’s current Nick |
@@ -851,14 +851,14 @@ The operation values remain authoritative for transaction payload construction.
 | `CreateLink` | `CitizenOpCreateSponsor` | target Nick | unused | unused | Create a Link to the target Citizen |
 | `DeleteLink` | `CitizenOpDeleteSponsor` | target Nick | unused | unused | Delete a Link to the target Citizen |
 
-`Sponsor` is reserved by the current policy.  
+`Link` is reserved by the current policy.  
 Link creation and deletion use the payload field:
 
 ```text
 Nick
 ```
 
-rather than a direct Sponsor address.
+rather than a direct Link address.
 
 ---
 
@@ -985,3 +985,4 @@ should be specified in later dedicated revisions or companion documents so that 
 | v0.3 | 2026-05-15 | Clarified that Citizen runtime actions are encoded through the payload `Op` field, documented concrete operation values, mapped public Citizen actions to encoded operation constants, and detailed per-operation payload field usage |
 | v0.4 | 2026-05-15 | Refined the Type 11 transaction section so that it remains focused on transaction structure, operation code semantics, and direct payload construction rules |
 | v0.5 | 2026-05-15 | Removed internal Go struct and enum declarations from the Type 11 transaction section, retaining only public payload field definitions, operation-code tables, and protocol-level transaction semantics |
+| v0.6 | 2026-05-15 | Corrected the reserved Citizen payload address field from `Sponsor` to `Link`; Link creation and deletion remain Nick-resolved operations rather than direct-address payload operations |
