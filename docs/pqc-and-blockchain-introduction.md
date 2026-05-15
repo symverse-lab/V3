@@ -44,16 +44,166 @@ Instead, they are classical cryptographic algorithms intended to resist attacks 
 
 ## 2.2 Why a Transition Is Needed
 
-Many widely deployed public-key cryptographic systems depend on mathematical problems that are believed to be vulnerable to large-scale quantum attacks.
+Many widely used public-key signature systems are based on mathematical problems that are believed to be hard for classical computers but vulnerable to sufficiently capable quantum computers.
+
+For blockchain systems, the most important example is:
+
+```text
+ECDSA over elliptic curves
+```
+
+which is widely used to authorize transactions in Ethereum-compatible account models.
+
+---
+
+### 2.2.1 The Classical Security Assumption Behind ECDSA
+
+ECDSA depends on the hardness of the **Elliptic Curve Discrete Logarithm Problem (ECDLP)**.
+
+In simplified form:
+
+```text
+Private key: d
+Base point:  G
+Public key:  Q = dG
+```
+
+Computing the public key `Q` from the private key `d` is easy.
+
+```text
+d  →  Q = dG
+```
+
+But recovering the private key `d` from the public key `Q` is believed to be computationally infeasible for classical computers.
+
+```text
+Q  →  d
+```
+
+This one-way difficulty is the foundation of ECDSA security.
+
+---
+
+### 2.2.2 Why Shor’s Algorithm Changes the Threat Model
+
+A sufficiently large fault-tolerant quantum computer can use **Shor’s algorithm** to solve discrete logarithm problems efficiently, including the elliptic-curve discrete logarithm problem that underlies ECDSA.
+
+At a high level:
+
+1. the attacker observes a public key `Q`,
+2. the problem is formulated as recovering the hidden scalar `d` such that `Q = dG`,
+3. Shor’s algorithm exploits quantum superposition and periodic structure,
+4. the **Quantum Fourier Transform (QFT)** is used as a core subroutine to extract the periodic information needed to recover the hidden relation,
+5. the private key `d` can then be derived.
+
+The result is conceptually:
+
+```text
+Public key Q
+   ↓  Shor’s algorithm + Quantum Fourier Transform
+Private key d
+```
+
+This is not merely a faster brute-force search.  
+It is a fundamentally different algorithmic attack against the mathematical structure that protects ECDSA.
+
+The Proos–Zalka analysis of Shor’s discrete-logarithm algorithm for elliptic curves shows how Shor’s method can be specialized to elliptic-curve groups.  
+See: [Shor’s discrete logarithm quantum algorithm for elliptic curves](https://arxiv.org/pdf/quant-ph/0301141).
+
+---
+
+### 2.2.3 Why Ethereum-Compatible Signatures Are Especially Exposed
+
+Ethereum-style ECDSA signatures are **recoverable signatures**.
+
+Given:
+
+- the signed message hash,
+- the signature values `(v, r, s)`,
+
+the signer’s public key can be recovered. Ethereum formalizes this through its `ECREC` / `ecrecover` public-key recovery function.
+
+```text
+message hash + (v, r, s)
+        ↓
+recovered public key
+```
+
+This is not itself a vulnerability.  
+It is a normal and intentional feature of Ethereum-style transaction verification and sender recovery.
+
+However, it matters in the quantum threat model:
+
+```text
+Recoverable signature
+        ↓
+Public key becomes available
+        ↓
+Quantum attacker can target the exposed public key
+        ↓
+Shor’s algorithm may derive the private key
+        ↓
+Forged signatures and asset theft become possible
+```
+
+Ethereum’s own roadmap states this directly:
+
+> when an account sends a transaction, its public key is exposed onchain, and a quantum computer could derive the private key from that exposed public key.
+
+See: [Future-proofing Ethereum and crypto quantum security](https://ethereum.org/roadmap/future-proofing/).
+
+The Ethereum Yellow Paper also defines `ECREC` as an ECDSA public-key recovery function.  
+See: [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf).
+
+---
+
+### 2.2.4 Why This Matters for Ethereum-Style Account Models
+
+In account-based systems such as Ethereum, addresses are commonly reused.  
+Once an account has sent a transaction, the corresponding public key can be reconstructed from transaction-signature data and becomes part of the observable attack surface.
+
+Deloitte’s quantitative Ethereum analysis defined **quantum-exposed funds** as funds held in addresses whose public keys have already been revealed through prior transactions.  
+In that analysis, Deloitte reported that **over 65% of all Ether** was in quantum-exposed addresses at the time of the study.
+
+See: [Quantum risk to the Ethereum blockchain](https://www.deloitte.com/nl/en/services/consulting-risk/perspectives/quantum-risk-to-the-ethereum-blockchain.html).
+
+This explains why Ethereum-style systems are often described as having a broader quantum-exposure surface than UTXO systems where address reuse can be more easily avoided.
+
+---
+
+### 2.2.5 Recent Risk Assessments and Industry Reports
+
+The urgency of the transition is increasingly being discussed outside purely academic cryptography literature.
+
+- **Tiger Research** summarizes the blockchain “Q-Day” concern and notes that Bitcoin and Ethereum remain in the early discussion phase relative to broader industry PQC migration.  
+  See: [Will Quantum Computers Break Bitcoin and Ethereum?](https://reports.tiger-research.com/p/quantum-pqc-eng)
+
+- **Project Eleven’s 2026 report** argues that blockchain systems are particularly exposed because addresses may hold meaningful value under the same public key for years, signature schemes are deeply embedded in protocol rules, and a compromised key has no simple recovery mechanism.  
+  See: [The Quantum Threat to Blockchains – 2026 Report](https://www.projecteleven.com/blog/the-quantum-threat-to-blockchains---2026-report)
+
+These reports should be read as **risk assessments**, not as proof that a cryptographically relevant quantum computer exists today.  
+No public quantum computer is currently known to be capable of breaking Ethereum’s ECDSA security in practice.  
+The problem is that blockchain migration takes years, and the exposure surface may already exist long before the attack machine arrives.
+
+---
+
+### 2.2.6 Why Post-Quantum Transition Must Start Early
 
 The transition is being driven by the need to protect:
 
-- Long-lived confidential data
-- Authentication systems
-- Digital signatures
-- Public-key infrastructure
-- Software update trust chains
-- Blockchain account authorization models
+- long-lived confidential data,
+- authentication systems,
+- digital signatures,
+- public-key infrastructure,
+- software update trust chains,
+- blockchain account authorization models.
+
+For blockchains, the important lesson is:
+
+```text
+The danger begins before quantum attacks become practical,
+because migration of accounts, wallets, protocols, and consensus rules takes time.
+```
 
 NIST finalized its first three post-quantum cryptography standards in August 2024:
 
@@ -697,6 +847,12 @@ For readers new to the V3 documents:
 The algorithm names, parameter sets, security categories, and byte sizes in this document are based on:
 
 - NIST FIPS 186-5 — Digital Signature Standard / ECDSA
+- Proos and Zalka — Shor’s discrete logarithm quantum algorithm for elliptic curves
+- Ethereum Yellow Paper — `ECREC` / `ecrecover` public-key recovery
+- Ethereum.org future-proofing roadmap — account public-key exposure and quantum private-key derivation risk
+- Deloitte — quantitative analysis of quantum-exposed Ether
+- Tiger Research — blockchain Q-Day risk framing
+- Project Eleven — 2026 blockchain quantum-threat report
 - SEC 2 — `secp256k1` 256-bit elliptic curve domain parameters
 - SEC 1 — elliptic-curve public-key point encoding rules
 - Ethereum Yellow Paper — `secp256k1` transaction-signing representation and `(v,r,s)` signature fields
@@ -725,3 +881,4 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 | v0.5 | 2026-05-15 | Reworded reader-facing NIST security-category language into the more accessible term “NIST Security Level” while retaining the official terminology note in the text |
 | v0.6 | 2026-05-15 | Expanded Falcon discussion to explain its pre-final-standardization status, blockchain adoption motivation, and why CAD avoids selecting a long-term signature strategy mainly from raw signature size |
 | v0.7 | 2026-05-15 | Added ECDSA/secp256k1 blockchain baseline specification and direct ECDSA-vs-PQC comparison tables for key and signature sizes |
+| v0.8 | 2026-05-15 | Expanded the transition rationale with ECDLP, Shor’s algorithm, Quantum Fourier Transform, Ethereum recoverable signatures, public-key exposure, and linked risk analyses from Ethereum.org, Deloitte, Tiger Research, and Project Eleven |
