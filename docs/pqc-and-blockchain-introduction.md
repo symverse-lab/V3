@@ -333,11 +333,71 @@ Falcon should be presented differently from ML-DSA and SLH-DSA:
 | **SLH-DSA** | Finalized as FIPS 205 |
 | **Falcon / FN-DSA** | Selected by NIST; planned as FIPS 206; still in development |
 
-For SymVerse V3 documentation, Falcon is useful to include because:
+This distinction matters for blockchain adoption:
+
+- Falcon is a **NIST-selected** PQC signature family,
+- but **FN-DSA / FIPS 206 is not yet a finalized NIST standard**,
+- so a blockchain that adopts Falcon today is adopting a compact and promising PQC signature family **before final standardization is complete**.
+
+---
+
+## 7.4 Falcon Adoption in Blockchain and the CAD Perspective
+
+Falcon has attracted strong interest in blockchain-oriented post-quantum work because its signatures are much smaller than those of ML-DSA and SLH-DSA.
+
+Recent public examples include:
+
+- **Algorand**, which has demonstrated Falcon-based post-quantum transaction work on mainnet,
+- **Solana ecosystem research**, where Anza and Firedancer independently explored Falcon as a compact post-quantum signature path for high-throughput blockchain use.
+
+These examples show why Falcon is appealing:
+
+```text
+When the blockchain keeps raw PQC signatures in transaction and ledger structures,
+smaller signatures look immediately attractive.
+```
+
+However, from the SymVerse V3 and CAD perspective, this also reveals an architectural limitation.
+
+If a blockchain selects Falcon primarily because:
+
+- raw signature bytes remain embedded in transaction data,
+- block propagation and storage remain directly sensitive to signature size,
+- and the commitment model itself is not redesigned,
+
+then the choice is still being driven by the **old signature-committing blockchain architecture**.
+
+SymVerse V3 takes a different position:
+
+```text
+The protocol should not be forced to choose its long-term security recommendation
+mainly by whichever PQC signature happens to be smallest.
+```
+
+This is where **CAD** becomes important.
+
+CAD changes the problem from:
+
+```text
+Which PQC signature is small enough to fit the existing commitment model?
+```
+
+to:
+
+```text
+How should consensus commit authorization outcomes
+without hard-coding itself to raw signature size?
+```
+
+For SymVerse V3 documentation, Falcon is therefore useful for four reasons:
 
 1. it is a major NIST-selected PQC signature family,
 2. it demonstrates that PQC signature sizes vary significantly by algorithm,
-3. it strengthens the argument that a blockchain architecture should not hard-code its commitment model around one signature family.
+3. it illustrates why some blockchain designs are naturally attracted to compact signatures when they retain traditional signature-committing structures,
+4. it strengthens the CAD argument that a blockchain architecture should not hard-code its consensus commitment model around one signature family or select its long-term security posture mainly from raw signature size.
+
+In this sense, Falcon-centered blockchain adoption is not “wrong,” but it often reflects a design path that **optimizes within the pre-CAD commitment model**.  
+SymVerse V3 aims to move beyond that constraint by adopting CAD and, after CADFork, recommending **ML-DSA-87** for its stronger long-term security level.
 
 ---
 
@@ -502,7 +562,8 @@ The algorithm names, parameter sets, security categories, and byte sizes in this
 - NIST FIPS 205 — SLH-DSA
 - NIST PQC standardization materials for Falcon / future FN-DSA (FIPS 206 in development)
 - The Falcon submitter specification and reference materials for Falcon-512 and Falcon-1024 size data
-- NIST PQC security evaluation criteria and FAQ materials for the meaning of Security Categories 1–5
+- NIST PQC security evaluation criteria and FAQ materials for the meaning of official security categories, presented in this document as Security Levels 1–5
+- Public blockchain materials from Algorand and Solana discussing Falcon-oriented post-quantum blockchain work
 
 For SLH-DSA, the private-key byte sizes are derived from the standardized private-key structure defined in FIPS 205.
 
@@ -518,3 +579,5 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 | v0.2 | 2026-05-15 | Added NIST PQC parameter tables for ML-DSA, SLH-DSA, and ML-KEM; expanded blockchain relevance discussion around concrete byte sizes |
 | v0.3 | 2026-05-15 | Added Falcon / FN-DSA section, including compact key/signature sizes and explicit note that FIPS 206 remains under development |
 | v0.4 | 2026-05-15 | Added NIST Security Level explanation, ML-DSA category interpretation, and SymVerse CADFork recommendation for ML-DSA-87 |
+| v0.5 | 2026-05-15 | Reworded reader-facing NIST security-category language into the more accessible term “NIST Security Level” while retaining the official terminology note in the text |
+| v0.6 | 2026-05-15 | Expanded Falcon discussion to explain its pre-final-standardization status, blockchain adoption motivation, and why CAD avoids selecting a long-term signature strategy mainly from raw signature size |
