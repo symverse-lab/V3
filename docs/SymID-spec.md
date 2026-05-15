@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.10  
+> **Status:** Draft v0.13  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -32,7 +32,6 @@ Version 0 = Legacy SymID
 Version 1 = PQCFork-era SymID
 ```
 
-SymID is therefore not a multi-account identity container.  
 It is the **direct account identifier derived from a cryptographic key pair within a specific chain context**.
 
 Within the blockchain, SymID is used as a **unique account key**:
@@ -84,46 +83,19 @@ SymID is bound to the target chain through:
 ChainID
 ```
 
-This chain-binding rule ensures that account identity is interpreted in the correct SymVerse network context.
-
-The complete public SymID composition rule is defined in:
-
-```text
-Section 4. SymID Composition
-```
+The canonical Version `1` SymID composition rule is defined in Section 4.
 
 ---
 
-## 2.3 Algorithm-Aware Account, Algorithm-Neutral SymID Derivation
+## 2.3 Algorithm-Aware Account, Common SymID Composition
 
-SymVerse V3 is designed for quantum-resistant blockchain operation.
+SymVerse V3 supports accounts authorized by:
 
-A SymID may belong to an account authorized by:
-
-- legacy ECDSA,
+- ECDSA,
 - ML-DSA,
-- future standardized PQC signature schemes.
+- future supported PQC signature schemes.
 
-However, the **SymID derivation rule itself does not take an algorithm code as a separate derivation input**.
-
-The SymID composition rule is defined once in Section 4 and is shared across supported account types.
-
-The signature algorithm is recorded and interpreted through the broader account authorization metadata, such as:
-
-| Layer | Role |
-|---|---|
-| SymID | Chain-bound account identifier |
-| Public key bytes | Source input for SymID derivation |
-| Account authorization metadata | Signature algorithm and full public-key interpretation |
-| Transaction authorization | Signature validation |
-| CAD | Consensus authorization commitment after CADFork |
-
-This distinction matters:
-
-```text
-The public key participates in SymID derivation.
-The algorithm policy belongs to account authorization metadata.
-```
+Each account family uses its own public key format, while the SymID composition rule remains the same as defined in Section 4.
 
 ---
 
@@ -176,21 +148,13 @@ The V3 identity model is:
 PrivateKey → PublicKey → PublicKeyHash → SymID
 ```
 
-This means:
-
-1. a new key pair creates a new public key,
-2. the public key contributes to the SymID account component,
-3. the final SymID is chain-bound,
-4. SymID is not a sequence under a shared Citizen ID,
-5. SymID is not a CA-issued serial-account number.
-
-The exact composition rule is defined in Section 4.
+A SymID is the chain-specific account identifier derived from the public-key hash composition defined in Section 4.
 
 ---
 
 ## 3.2 One SymID Per Key Pair and Chain Context
 
-A SymID is uniquely tied to:
+A SymID is uniquely determined by:
 
 - public key material,
 - Version,
@@ -198,14 +162,9 @@ A SymID is uniquely tied to:
 
 | Case | Result |
 |---|---|
-| Same public key, same Version, same ChainID | Same SymID derivation result |
-| Different public key | Different SymID derivation result |
-| Same public key, different ChainID | Different chain-bound SymID |
-| Public key missing | Invalid derivation |
-| Version = `0` | Invalid derivation |
-| ChainID missing | Invalid derivation |
-
-The protocol therefore treats SymID as a deterministic account identifier under a specific chain and SymID version.
+| Same public key, same Version, same ChainID | Same SymID |
+| Different public key | Different SymID |
+| Same public key, different ChainID | Different SymID |
 
 ---
 
@@ -278,29 +237,16 @@ This table is the canonical public definition of the V3 SymID layout.
 
 ## 4.3 Version Policy
 
-The `Version` field distinguishes Legacy SymID from the PQCFork-era V3 SymID model.
-
 | Version | Meaning |
 |---:|---|
 | `0` | Legacy SymID |
 | `1` | PQCFork-era SymID |
 
-After PQCFork, newly derived V3 SymIDs use:
+PQCFork-era SymIDs use:
 
 ```text
 Version = 1
 ```
-
-Legacy SymIDs remain identifiable through:
-
-```text
-Version = 0
-```
-
-This version separation allows the protocol and documentation to distinguish:
-
-- pre-PQCFork Legacy SymID space,
-- post-PQCFork public-key-hash-based V3 SymID space.
 
 ---
 
@@ -319,76 +265,194 @@ This rule allows any implementation to derive the same SymID from the same:
 - Version,
 - ChainID.
 
----
-
-## 4.5 Input Validation
-
-SymID derivation MUST reject invalid input.
-
-| Condition | Result |
-|---|---|
-| Public key is empty | Reject |
-| Version is outside the supported version policy | Reject |
-| `ChainID` is empty | Reject |
+These composition rules define the Version `1` PQCFork-era SymID format.
 
 ---
 
-## 4.6 Not Address-plus-Nonce Derivation
+# 5. Version `0` Legacy SymID Model
 
-The V3 SymID derivation rule MUST NOT be confused with:
+## 5.1 Scope
+
+Version `0` represents the Legacy SymID model.
+
+This section preserves the Legacy account document and address examples required for compatibility and historical interpretation.
+
+---
+
+## 5.2 Legacy Account Document
+
+The Legacy SymID account document used the following fields.
+
+| Field | Size | Explanation |
+|---|---:|---|
+| `PubKeyHash` | 20 bytes | Public-key hash |
+| `Role` | 2 bytes | Role and purpose of SymID |
+| `Verification Flag` | 2 bytes | Issuer verification strength |
+| `State` | 1 byte | SymID status |
+| `Credit` | 1 byte | Blockchain external credit rating |
+| `Country` | 1 byte | Country code |
+| `Ref. code` | 4 bytes | Issuer reference code |
+| `Issued` | 7 bytes | Date issued |
+
+---
+
+## 5.3 Legacy Citizen ID
+
+In the Legacy model, `Citizen ID` was used to reflect a person’s identity, similar to an existing ID card.
+
+| Item | Size | Meaning |
+|---|---:|---|
+| `Citizen ID` | 8 bytes | Identity component composed of `CA ID` and `Random` |
+
+Conceptually:
 
 ```text
-address + nonce
+Citizen ID =
+  CA ID
+  + Random
 ```
 
-style address derivation.
-
-SymID is derived from the public-key hash component together with Version and ChainID, as defined in this section.
-
 ---
 
-## 4.7 Same Composition for ECDSA and PQC
+## 5.4 Legacy CA ID
 
-The same SymID composition policy applies to:
+`CA ID` was a code assigned to each issuer and assigned under the Master CA model.
 
-- ECDSA public keys,
-- ML-DSA public keys,
-- future PQC public keys supported by the chain.
-
-The public-key material differs by algorithm.  
-The SymID composition does not.
-
----
-
-# 5. Legacy SymID Examples
-
-## 5.1 Why Legacy Examples Are Included
-
-Version `0` represents the Legacy SymID space.
-
-The V3 specification uses a new PQCFork-era SymID interpretation for Version `1`, but Legacy SymIDs remain important for:
-
-- historical chain compatibility,
-- existing reserved/system address recognition,
-- migration documentation,
-- transaction and explorer interpretation.
-
----
-
-## 5.2 Representative Legacy SymID Addresses
-
-The earlier SymID documentation listed representative Legacy SymID addresses such as the following. citeturn131785view0
-
-| Legacy Holder | Legacy SymID Example |
+| CA ID Range | Meaning |
 |---|---|
-| Master CA first account | `0x0001 000000000001 0002` |
-| Master CA second account | `0x0001 000000000001 0003` |
+| `0x0001` | Master CA (SymVerse Foundation) |
+| `0x0002 ~ 0x0400` | Trusted CA |
+| `0x0401 ~ 0x0800` | Public CA |
+| `0x0801 ~ 0x1400` | Anonymous CA |
+| `0x1401 ~ 0xFFFF` | Reserved |
+
+---
+
+## 5.5 Legacy Random Component
+
+`Random` was the number assigned by a CA to each user.
+
+| Random Value | Meaning |
+|---|---|
+| `0x00...01` | CA |
+| `0x00...02` or above | Normal user |
+
+---
+
+## 5.6 Legacy SeqNum
+
+`SeqNum` represented the issued serial number of the Account.
+
+| SeqNum | Meaning |
+|---:|---|
+| `1` | Reserved |
+| `2 ~ 9999` | Account |
+| `10000` or above | Reserved |
+
+---
+
+## 5.7 Legacy Account Field Semantics
+
+### 5.7.1 PubKeyHash
+
+`PubKeyHash` was defined as:
+
+```text
+Lower 20 bytes of the user's public-key hash value
+```
+
+It was used for signature verification during:
+
+- mutual authentication,
+- remittance.
+
+---
+
+### 5.7.2 Role
+
+`Role` identified the role and purpose of SymID.
+
+| Role Value | Meaning |
+|---|---|
+| `0x0001` | General account, default |
+| `0xF0F0` | Master CA |
+| `0xF0F1` | CA |
+| Others | Reserved |
+
+---
+
+### 5.7.3 Verification Flag
+
+`Verification Flag` described how strongly SymID had been registered and verified with identity information.
+
+| Bit Position | Meaning |
+|---|---|
+| `lsb + 0` | Checks e-mail |
+| `lsb + 1` | Checks phone number |
+| `lsb + 2` | Checks whether national ID card is confirmed |
+| `lsb + 3` | Checks face-to-face |
+| `lsb + 4` | Deposit |
+| `lsb + 5 ~ msb` | Reserved |
+
+---
+
+### 5.7.4 State
+
+`State` described the current state of the SymID.
+
+| State Value | Meaning |
+|---:|---|
+| `0x01` | Active, default |
+| `0x02` | Revoked, discarded by the user |
+| `0x03` | Locked, transaction suspended by the user |
+| `0x04` | Holding, not currently used |
+| `0x05` | Marked, monitored by the foundation as a cautionary account |
+
+---
+
+### 5.7.5 Credit
+
+`Credit` referred to an index of SymID’s blockchain external credit rating.
+
+The Legacy documentation described this as an Oracle-applied credit value.
+
+---
+
+### 5.7.6 Ref. code
+
+`Ref. code` was a space allocated for a CA to input additional information about SymID during issuance.
+
+This Legacy `Ref. code` is distinct from the **Citizen Protocol `RefCode`** used in Version `1` Citizen relation flows.
+
+---
+
+### 5.7.7 Issued
+
+`Issued` stored the date and time of SymID creation.
+
+The Legacy format was:
+
+```text
+YY YY MM DD HH MM SS
+```
+
+---
+
+## 5.8 Representative Legacy SymID Structure Examples
+
+The Legacy SymID documentation provided the following representative address structures.
+
+| Owner / Holder | Legacy SymID |
+|---|---|
+| Master CA’s 1st Account | `0x0001 000000000001 0002` |
+| Master CA’s 2nd Account | `0x0001 000000000001 0003` |
 | Oracle | `0x0001 000000000002 0002` |
 | Reward | `0x0001 000000000003 0002` |
-| First CA first account | `0x0002 000000000001 0002` |
-| First CA second account | `0x0002 000000000001 0003` |
-
-These examples belong to the Legacy SymID interpretation and should not be confused with the Version `1` PQCFork-era SymID composition rule.
+| 1st CA’s 1st Account | `0x0002 000000000001 0002` |
+| 1st CA’s 2nd Account | `0x0002 000000000001 0003` |
+| 1st CA’s 1st User’s 1st Account | `0x0002 XXXXXXXXXXXX 0002` |
+| 1st CA’s 1st User’s 2nd Account | `0x0002 XXXXXXXXXXXX 0003` |
+| 1st CA’s 2nd User’s 1st Account | `0x0002 YYYYYYYYYYYY 0002` |
 
 ---
 
@@ -463,20 +527,11 @@ ML-DSA public key
   → SymID composition rule applies
 ```
 
-The public-key format and size differ by algorithm, but the SymID construction principle remains identical:
-
-```text
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
-→ SymID
-```
-
-This ensures that both legacy-compatible and post-quantum accounts can use the same SymID identity framework.
+The public-key format and size differ by algorithm, but both follow the same SymID composition rule defined in Section 4.
 
 ---
 
-# 7. SymID Derivation and Verification
+# 7. SymID Verification
 
 ## 7.1 Derivation Consistency
 
@@ -486,21 +541,13 @@ All SymID generation paths MUST derive the same SymID from the same:
 - Version,
 - ChainID.
 
-For PQCFork-era V3 SymID generation:
-
-```text
-Version = 1
-```
-
 The canonical composition rule is defined in Section 4.
-
-A missing or mismatched ChainID must be treated as an error in derivation-sensitive paths.
 
 ---
 
 ## 7.2 Public-Key Binding
 
-The SymID must remain consistent with the public-key material used for authorization.
+A SymID must remain consistent with the public-key material used for authorization.
 
 Conceptually:
 
@@ -513,42 +560,17 @@ VerifySymID(
 ) = true
 ```
 
-Verification applies the composition rule defined in Section 4.
-
 ---
 
-## 7.3 Unified Creation Rule
-
-Any account or Citizen creation path that already knows the public key SHOULD use the unified SymID composition rule.
-
-This applies to:
-
-- ECDSA account creation,
-- PQC account creation,
-- Citizen registration paths that carry public-key material.
-
-The V3 policy is:
-
-```text
-Do not create a separate SymID derivation rule.
-Do not derive SymID from address + nonce when the public key is available.
-```
-
----
-
-## 7.4 Sender Verification
+## 7.3 Sender Verification
 
 For a transaction sender, the protocol validates that:
 
-1. the transaction sender field contains a SymID,
-2. the authorization public key corresponds to that SymID composition rule,
+1. the sender field contains a SymID,
+2. the authorization public key corresponds to that SymID,
 3. the signature satisfies the account’s algorithm rules.
 
-For PQC accounts, this includes validation against:
-
-- `QAlgo`,
-- `QKeyPub`,
-- the transaction’s post-quantum signature evidence where applicable.
+For PQC accounts, this validation uses the account’s PQC authorization metadata.
 
 ---
 
@@ -723,3 +745,6 @@ The exact RPC field names are defined in the related API specifications.
 | v0.8 | 2026-05-15 | Added the SymID version policy (`0 = Legacy`, `1 = PQCFork-era SymID`), clarified post-PQCFork Version `1` usage, and added representative Legacy SymID/system-address examples from the earlier SymID documentation |
 | v0.9 | 2026-05-15 | Replaced the algorithm-code example table with a clearer rule: ECDSA and ML-DSA both provide public keys, and both follow the same SymID composition path using the last 8 bytes of `SHA3-256(public key)` |
 | v0.10 | 2026-05-15 | Removed non-V3 legacy prefix commentary and clarified that Citizen Protocol identifiers such as Nick, RefCode, Referrer, and Link are user-facing convenience layers that resolve to and operate over underlying SymID-backed blockchain accounts |
+| v0.11 | 2026-05-15 | Expanded the Version `0` Legacy SymID section to preserve the historical Account Document fields, Citizen ID / CA ID / Random / SeqNum model, Legacy account-field semantics, and representative Legacy SymID structure examples while keeping them separate from the Version `1` PQCFork-era composition rule |
+| v0.12 | 2026-05-15 | Simplified the Version `1` SymID composition section by removing non-essential implementation-adjacent explanatory subsections, leaving a more concise specification centered on field layout and public-key-hash derivation |
+| v0.13 | 2026-05-15 | Further tightened the specification by removing unnecessary contrastive legacy wording from the V3 narrative, shortening identity and verification explanations, and keeping the new-version sections focused on direct Version `1` SymID rules |
