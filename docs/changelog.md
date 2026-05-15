@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-05-15
+
+### Added
+
+- `docs/cad-overview.md`
+  - figure-first explanation of CAD
+  - traditional vs CAD comparison
+  - CAD processing flow
+  - same TxRoot / different CADRoot concept
+  - annual commitment impact table
+  - dual-acceptance illustration
+
+### Changed
+
+- `docs/cad-spec.md`
+  - refocused as a formal specification document
+  - moved figure-heavy explanatory content to `cad-overview.md`
+  - simplified around definitions, rules, and V3 integration decisions
+
+- `README.md`
+  - added CAD overview to documentation index and reading order
+
+- `docs/changelog.md`
+  - updated for CAD overview / spec split
+
+---
+
 ## 2026-05-14
 
 ### Added
@@ -47,9 +74,9 @@
 
 - `docs/cad-spec.md`
   - CAD architecture motivation
-  - Digest role
+  - digest role
   - CADRoot / TxRoot discussion areas
-  - Non-contradiction requirements
+  - non-contradiction requirements
 
 - `docs/rpc-api-spec.md`
   - Citizen APIs
