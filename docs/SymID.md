@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.2  
+> **Status:** Draft v0.3  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -59,53 +59,82 @@ This applies to:
 ## 2.2 Chain-Bound Identity
 
 SymID is not derived from public-key material alone.  
-It is also bound to the target chain through:
+It is bound to the target chain through:
 
 ```text
 ChainID
 ```
 
-The purpose is to prevent ambiguity across chains and to ensure that a SymID is interpreted in the proper SymVerse network context.
-
-Conceptually:
+The V3 derivation input is:
 
 ```text
-SymID = Derive(
-  ChainID,
-  PublicKey,
-  Algorithm Context
+SymIDParams {
+  Version,
+  ChainID
+}
+```
+
+The public SymID derivation policy is:
+
+```text
+SymID = DeriveSymIDFromPub(
+  PublicKeyBytes,
+  Version,
+  ChainID
 )
 ```
 
-The public specification uses the term:
+This makes the same public key produce a SymID only within the intended chain context.
+
+| Input | Role |
+|---|---|
+| `PublicKeyBytes` | Cryptographic identity source |
+| `Version` | SymID format discriminator |
+| `ChainID` | Chain-binding parameter |
+
+`CaID` is not part of the V3 SymID derivation policy.  
+The chain-binding component is:
 
 ```text
 ChainID
 ```
 
-for this chain-binding component.
-
 ---
 
-## 2.3 Algorithm-Aware Identity
+## 2.3 Algorithm-Aware Account, Algorithm-Neutral SymID Derivation
 
 SymVerse V3 is designed for quantum-resistant blockchain operation.
 
-A SymID may be associated with:
+A SymID may belong to an account authorized by:
 
-- legacy ECDSA authorization,
-- ML-DSA authorization,
-- future standardized PQC authorization schemes.
+- legacy ECDSA,
+- ML-DSA,
+- future standardized PQC signature schemes.
 
-The signature algorithm itself is not expressed only by the visible SymID string.  
-Instead, the broader V3 account model combines:
+However, the **SymID derivation rule itself does not take an algorithm code as a separate derivation input**.
+
+The derivation rule uses:
+
+```text
+PublicKeyBytes + Version + ChainID
+```
+
+The signature algorithm is recorded and interpreted through the broader account authorization metadata, such as:
 
 | Layer | Role |
 |---|---|
-| SymID | Account identifier |
-| Account authorization metadata | Signature algorithm and public-key material |
+| SymID | Chain-bound account identifier |
+| Public key bytes | Source input for SymID derivation |
+| Account authorization metadata | Signature algorithm and full public-key interpretation |
 | Transaction authorization | Signature validation |
 | CAD | Consensus authorization commitment after CADFork |
+
+This distinction matters:
+
+```text
+The public key participates in SymID derivation.
+The algorithm policy belongs to account authorization metadata.
+```
 
 ---
 
@@ -139,35 +168,43 @@ These are related, but not identical concepts.
 The V3 model is:
 
 ```text
-PrivateKey → PublicKey → SymID
+PrivateKey → PublicKeyBytes → SymID
 ```
 
 with chain binding:
 
 ```text
-(ChainID, PublicKey) → SymID
+(PublicKeyBytes, Version, ChainID) → SymID
 ```
 
 This means:
 
-1. a new key pair creates a new SymID,
-2. changing the key pair creates a different SymID,
-3. SymID is not a sequence under a shared Citizen ID,
-4. SymID is not a CA-issued serial-account number.
+1. a new key pair creates a new public-key byte sequence,
+2. the public-key byte sequence is hashed to derive the account component of SymID,
+3. Version and ChainID are embedded through the SymID construction path,
+4. SymID is not a sequence under a shared Citizen ID,
+5. SymID is not a CA-issued serial-account number.
 
 ---
 
-## 3.2 One SymID Per Key Pair
+## 3.2 One SymID Per Key Pair and Chain Context
 
-A SymID is uniquely tied to its cryptographic account key pair.
+A SymID is uniquely tied to:
+
+- public-key bytes,
+- Version,
+- ChainID.
 
 | Case | Result |
 |---|---|
-| Same key pair, same ChainID | Same SymID derivation result |
-| Different key pair | Different SymID |
-| Same public key under a different ChainID | Different chain-bound identity context |
+| Same public key bytes, same Version, same ChainID | Same SymID derivation result |
+| Different public key bytes | Different SymID derivation result |
+| Same public key bytes, different ChainID | Different chain-bound SymID |
+| Missing public key bytes | Invalid derivation |
+| Version = `0` | Invalid derivation |
+| ChainID missing | Invalid derivation |
 
-The protocol therefore treats SymID as a deterministic account identifier under a chain.
+The protocol therefore treats SymID as a deterministic account identifier under a specific chain and SymID version.
 
 ---
 
@@ -176,29 +213,87 @@ The protocol therefore treats SymID as a deterministic account identifier under 
 The typical V3 account creation flow is:
 
 ```text
-1. Select account algorithm.
-2. Generate private key and public key.
-3. Select the target ChainID.
-4. Derive SymID from the public-key context and ChainID.
-5. Register the account/Citizen state as required by the protocol.
+1. Select the account authorization scheme.
+2. Generate private key and public key bytes.
+3. Set SymID Version.
+4. Set target ChainID.
+5. Compute SHA3-256(public key bytes).
+6. Use the lower 8 bytes of the hash as the key-derived SymID component.
+7. Construct SymID from Version, ChainID, and the 8-byte key-derived component.
+8. Register the account/Citizen state as required by the protocol.
 ```
 
-For PQC-capable accounts, the account creation flow includes post-quantum public-key material and algorithm metadata.
+For PQC-capable accounts, the public-key bytes may be significantly larger than ECDSA public keys, but the SymID derivation policy remains the same:
+
+```text
+SHA3-256(public key bytes)
+  → lower 8 bytes
+  → SymID account component
+```
 
 ---
 
-# 4. SymID Semantic Format
+# 4. SymID Derivation Format
 
-## 4.1 Public Semantic Composition
+## 4.1 Normative V3 Derivation Rule
 
-A V3 SymID is described semantically by the following components:
+The V3 SymID generation policy is defined by the following derivation procedure:
 
-| Component | Meaning |
+```text
+Input:
+  pub      = public key bytes
+  Version  = non-zero SymID version
+  ChainID  = non-empty chain identifier
+
+Step 1:
+  h = SHA3-256(pub)
+
+Step 2:
+  suffix = last 8 bytes of h
+
+Step 3:
+  SymID = SetValuesQ(
+    Version,
+    ChainID,
+    suffix
+  )
+```
+
+In implementation-oriented shorthand:
+
+```text
+SymID = SetValuesQ(
+  Version,
+  ChainID.Uint64(),
+  SHA3-256(pub)[24:32]
+)
+```
+
+---
+
+## 4.2 Input Validation
+
+SymID derivation MUST reject invalid derivation input.
+
+| Condition | Result |
 |---|---|
-| Version | SymID format/version discriminator |
-| ChainID | Chain-binding component |
-| Key-derived account component | Identifier derived from public-key context |
-| Algorithm context | Account authorization family used when deriving or interpreting the SymID |
+| `pub` is empty | Reject |
+| `Version = 0` | Reject |
+| `ChainID` is empty / nil | Reject |
+
+These checks prevent malformed or under-specified account identifiers.
+
+---
+
+## 4.3 SymID Construction Components
+
+The V3 SymID construction path combines:
+
+| Component | Source |
+|---|---|
+| Version | `SymIDParams.Version` |
+| ChainID | `SymIDParams.ChainID` |
+| Key-derived suffix | Lower 8 bytes of `SHA3-256(public key bytes)` |
 
 Conceptually:
 
@@ -206,54 +301,61 @@ Conceptually:
 SymID =
   Version
   + ChainID
-  + Key-derived account component
+  + SHA3-256(pub) lower 8 bytes
 ```
 
-The public specification focuses on these semantics.  
-The exact binary layout and internal derivation encoding are implementation-defined by the SymVerse V3 protocol code and should remain consistent across all account creation and verification paths.
+The exact final address encoding is determined by the protocol’s `SetValuesQ(...)` construction rule.
 
 ---
 
-## 4.2 ChainID Replaces Issuer-Oriented Prefixing
+## 4.4 ChainID Replaces CA-Oriented Prefixing
 
-V3 SymID is not organized around issuer-class ranges.
-
-The V3 account identifier should be interpreted through:
+The V3 SymID derivation policy uses:
 
 ```text
 ChainID
 ```
 
-rather than a CA/issuer hierarchy.
+not `CaID`.
 
-This design aligns SymID with the quantum-resistant blockchain architecture:
-
-- accounts are derived from cryptographic keys,
-- chain identity is explicit,
-- Citizen registration is handled by the Citizen Protocol,
-- authorization capability is handled by account metadata and transaction validation.
+Legacy CA-style prefixing is outside the V3 derivation rule.  
+All V3 account and Citizen creation paths that know the public key SHOULD use the unified public-key derivation rule described in this section.
 
 ---
 
-## 4.3 Visible SymID
+## 4.5 Not Address-plus-Nonce Derivation
 
-A SymID is represented as a blockchain address string.
-
-Representative V3-style examples may appear as:
+The V3 SymID derivation rule MUST NOT be confused with:
 
 ```text
-0x40058C54...
-0x400A8C54...
-0xC1223344...
+address + nonce
 ```
 
-The exact value depends on:
+style address derivation.
 
-- chain context,
-- key material,
-- account derivation rules.
+The rule is public-key-based:
 
-These examples illustrate that SymID is a chain/account identifier, not a user-chosen alias.
+```text
+public key bytes
+  → SHA3-256
+  → lower 8 bytes
+  → SymID construction with Version and ChainID
+```
+
+No external package or creation path should infer an alternative SymID derivation rule when the public key is available.
+
+---
+
+## 4.6 ECDSA and PQC Use the Same Derivation Policy
+
+The same SymID derivation policy applies to:
+
+- ECDSA public-key bytes,
+- ML-DSA public-key bytes,
+- future PQC public-key bytes supported by the chain.
+
+The public-key byte content differs by algorithm.  
+The SymID derivation policy does not.
 
 ---
 
@@ -282,7 +384,9 @@ Conceptually:
 
 ```text
 ECDSA private key
-  → ECDSA public key
+  → ECDSA public key bytes
+  → SHA3-256(pub)
+  → lower 8-byte account component
   → SymID
 ```
 
@@ -298,7 +402,9 @@ Conceptually:
 
 ```text
 PQC private key
-  → PQC public key
+  → PQC public key bytes
+  → SHA3-256(pub)
+  → lower 8-byte account component
   → ChainID-bound SymID
 ```
 
@@ -328,11 +434,11 @@ SymVerse plans to recommend **ML-DSA-87** after CADFork because it provides the 
 
 ## 6.1 Derivation Consistency
 
-All SymID generation paths must derive the same SymID from the same:
+All SymID generation paths MUST derive the same SymID from the same:
 
-- ChainID,
-- public key,
-- algorithm context.
+- public-key bytes,
+- Version,
+- ChainID.
 
 The protocol must not silently substitute chain context.  
 A missing or mismatched ChainID must be treated as an error in derivation-sensitive paths.
@@ -346,23 +452,49 @@ The SymID must remain consistent with the public-key material used for authoriza
 Conceptually:
 
 ```text
-Verify(
+VerifySymID(
+  pub,
+  Version,
   ChainID,
-  PublicKey,
   SymID
 ) = true
 ```
 
-This prevents a transaction or account record from claiming an unrelated SymID.
+where verification replays the same derivation path:
+
+```text
+SHA3-256(pub)
+  → lower 8 bytes
+  → SetValuesQ(Version, ChainID, suffix)
+```
 
 ---
 
-## 6.3 Sender Verification
+## 6.3 Unified Creation Rule
+
+Any account or Citizen creation path that already knows the public key bytes SHOULD use the unified SymID derivation rule.
+
+This applies to:
+
+- ECDSA account creation,
+- PQC account creation,
+- Citizen registration paths that carry public-key material.
+
+The V3 policy is:
+
+```text
+Do not create a separate SymID derivation rule in another package.
+Do not derive SymID from address + nonce when the public key is available.
+```
+
+---
+
+## 6.4 Sender Verification
 
 For a transaction sender, the protocol validates that:
 
 1. the transaction sender field contains a SymID,
-2. the authorization public key corresponds to that SymID,
+2. the authorization public key corresponds to that SymID derivation rule,
 3. the signature satisfies the account’s algorithm rules.
 
 For PQC accounts, this includes validation against:
@@ -523,3 +655,4 @@ The exact RPC field names are defined in the related API specifications.
 |---|---|---|
 | v0.1 | 2026-05-15 | Initial draft based too closely on the legacy SymID identity hierarchy |
 | v0.2 | 2026-05-15 | Rewritten for the quantum-resistant V3 architecture: one key pair maps to one SymID, ChainID replaces CA ID as the public chain-binding concept, issuer-hierarchy assumptions are removed, and PQC account/CAD/Citizen Protocol relationships are defined |
+| v0.3 | 2026-05-15 | Rewritten around the concrete V3 SymID derivation policy: `DeriveSymIDFromPub`, `SymIDParams { Version, ChainID }`, SHA3-256 of public-key bytes, lower 8-byte hash suffix, `SetValuesQ(Version, ChainID, suffix)`, explicit invalid-input rejection, and unified ECDSA/PQC derivation rules |
