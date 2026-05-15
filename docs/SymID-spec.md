@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.13  
+> **Status:** Draft v0.14  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -269,9 +269,165 @@ These composition rules define the Version `1` PQCFork-era SymID format.
 
 ---
 
-# 5. Version `0` Legacy SymID Model
+# 5. SymID and DID
 
-## 5.1 Scope
+## 5.1 DID Form
+
+A Decentralized Identifier (DID) is expressed in the form:
+
+```text
+did:<method>:<method-specific-identifier>
+```
+
+For SymVerse, the DID-oriented representation is:
+
+```text
+did:sym:<SymID>
+```
+
+Example:
+
+```text
+did:sym:0x4002aa112233445566778899
+```
+
+In this expression:
+
+| Part | Meaning |
+|---|---|
+| `did` | DID URI scheme |
+| `sym` | SymVerse DID method name |
+| `<SymID>` | Method-specific identifier |
+
+---
+
+## 5.2 Version `1` SymID as the `did:sym` Identifier
+
+Version `1` SymID is suitable for DID-style representation because it is derived from public-key material and includes chain context.
+
+The Version `1` SymID composition is:
+
+```text
+Version
+ChainID
+PublicKeyHash (last 8 bytes)
+→ SymID
+```
+
+Therefore:
+
+```text
+did:sym:<SymID>
+```
+
+can use the SymID itself as the method-specific identifier.
+
+Within SymVerse documentation:
+
+```text
+SymID
+```
+
+is the compact blockchain-native identifier, and:
+
+```text
+did:sym:<SymID>
+```
+
+is its DID-form representation.
+
+---
+
+## 5.3 Chain-Aware DID Representation
+
+A DID method may define its own method-specific identifier format.  
+SymID embeds chain context directly through:
+
+```text
+ChainID
+```
+
+inside the SymID structure.
+
+As a result, the `did:sym` representation does not need a separate network segment outside the SymID.
+
+| Network | ChainID | Example DID |
+|---|---:|---|
+| Mainnet | `2` | `did:sym:0x4002aa112233445566778899` |
+| Testnet | `5` | `did:sym:0x4005aa112233445566778899` |
+
+This means:
+
+```text
+did:sym:<SymID>
+```
+
+is sufficient to carry both:
+
+- the SymVerse account identifier,
+- and its chain context.
+
+---
+
+## 5.4 Compactness
+
+SymID is a compact 10-byte account identifier.
+
+For transaction fields that carry both sender and receiver identifiers:
+
+| Address Scheme | Sender + Receiver Identifier Size |
+|---|---:|
+| SymID | `20 bytes` |
+| 20-byte address scheme | `40 bytes` |
+
+At `1,000 TPS`, this difference corresponds to:
+
+| Scheme | Address Bytes per Second |
+|---|---:|
+| SymID | `20 KB/s` |
+| 20-byte address scheme | `40 KB/s` |
+
+SymID therefore combines:
+
+- compact address representation,
+- embedded chain context,
+- and DID-oriented expression through `did:sym:<SymID>`.
+
+---
+
+## 5.5 Decentralized Identifier vs Distributed Identifier
+
+The terms **Decentralized Identifier** and **Distributed Identifier** should not be used interchangeably.
+
+| Item | Decentralized Identifier (DID) | Distributed Identifier |
+|---|---|---|
+| Standardization | Defined by the W3C DID model | No single formal standard |
+| Identifier form | `did:<method>:<method-specific-identifier>` | Implementation-specific |
+| Public-key control | Expected as part of verifiable decentralized identity design | Depends on the system |
+| Interoperability | Designed for DID methods, resolvers, and DID documents | Varies by implementation |
+| Preferred term in SymVerse documents | Yes | Avoid for DID-specific discussions |
+
+The relationship can be summarized as:
+
+```text
+DID ⊆ Distributed ID
+```
+
+All DIDs can be described as distributed identifiers in a broad sense, but not every distributed identifier qualifies as a DID.
+
+For SymVerse documentation, the preferred terminology is:
+
+```text
+Decentralized Identifier (DID)
+```
+
+when referring to `did:sym` and DID-oriented SymID interpretation.
+
+---
+
+# 6. Version `0` Legacy SymID Model
+
+## 6.1 Scope
 
 Version `0` represents the Legacy SymID model.
 
@@ -279,7 +435,7 @@ This section preserves the Legacy account document and address examples required
 
 ---
 
-## 5.2 Legacy Account Document
+## 6.2 Legacy Account Document
 
 The Legacy SymID account document used the following fields.
 
@@ -296,7 +452,7 @@ The Legacy SymID account document used the following fields.
 
 ---
 
-## 5.3 Legacy Citizen ID
+## 6.3 Legacy Citizen ID
 
 In the Legacy model, `Citizen ID` was used to reflect a person’s identity, similar to an existing ID card.
 
@@ -314,7 +470,7 @@ Citizen ID =
 
 ---
 
-## 5.4 Legacy CA ID
+## 6.4 Legacy CA ID
 
 `CA ID` was a code assigned to each issuer and assigned under the Master CA model.
 
@@ -328,7 +484,7 @@ Citizen ID =
 
 ---
 
-## 5.5 Legacy Random Component
+## 6.5 Legacy Random Component
 
 `Random` was the number assigned by a CA to each user.
 
@@ -339,7 +495,7 @@ Citizen ID =
 
 ---
 
-## 5.6 Legacy SeqNum
+## 6.6 Legacy SeqNum
 
 `SeqNum` represented the issued serial number of the Account.
 
@@ -351,9 +507,9 @@ Citizen ID =
 
 ---
 
-## 5.7 Legacy Account Field Semantics
+## 6.7 Legacy Account Field Semantics
 
-### 5.7.1 PubKeyHash
+### 6.7.1 PubKeyHash
 
 `PubKeyHash` was defined as:
 
@@ -368,7 +524,7 @@ It was used for signature verification during:
 
 ---
 
-### 5.7.2 Role
+### 6.7.2 Role
 
 `Role` identified the role and purpose of SymID.
 
@@ -381,7 +537,7 @@ It was used for signature verification during:
 
 ---
 
-### 5.7.3 Verification Flag
+### 6.7.3 Verification Flag
 
 `Verification Flag` described how strongly SymID had been registered and verified with identity information.
 
@@ -396,7 +552,7 @@ It was used for signature verification during:
 
 ---
 
-### 5.7.4 State
+### 6.7.4 State
 
 `State` described the current state of the SymID.
 
@@ -410,7 +566,7 @@ It was used for signature verification during:
 
 ---
 
-### 5.7.5 Credit
+### 6.7.5 Credit
 
 `Credit` referred to an index of SymID’s blockchain external credit rating.
 
@@ -418,7 +574,7 @@ The Legacy documentation described this as an Oracle-applied credit value.
 
 ---
 
-### 5.7.6 Ref. code
+### 6.7.6 Ref. code
 
 `Ref. code` was a space allocated for a CA to input additional information about SymID during issuance.
 
@@ -426,7 +582,7 @@ This Legacy `Ref. code` is distinct from the **Citizen Protocol `RefCode`** used
 
 ---
 
-### 5.7.7 Issued
+### 6.7.7 Issued
 
 `Issued` stored the date and time of SymID creation.
 
@@ -438,7 +594,7 @@ YY YY MM DD HH MM SS
 
 ---
 
-## 5.8 Representative Legacy SymID Structure Examples
+## 6.8 Representative Legacy SymID Structure Examples
 
 The Legacy SymID documentation provided the following representative address structures.
 
@@ -456,9 +612,9 @@ The Legacy SymID documentation provided the following representative address str
 
 ---
 
-# 6. Authorization Metadata Associated with SymID
+# 7. Authorization Metadata Associated with SymID
 
-## 6.1 Account Authorization Model
+## 7.1 Account Authorization Model
 
 A SymID-linked account carries authorization metadata used for transaction validation.
 
@@ -473,7 +629,7 @@ In V3, relevant authorization concepts include:
 
 ---
 
-## 6.2 ECDSA Account
+## 7.2 ECDSA Account
 
 An ECDSA-backed SymID uses classical signature authorization.
 
@@ -483,7 +639,7 @@ ECDSA remains part of compatibility and transition handling where the protocol p
 
 ---
 
-## 6.3 PQC Account
+## 7.3 PQC Account
 
 A PQC-backed SymID uses post-quantum public-key material.
 
@@ -498,7 +654,7 @@ The SymID account identifier and the PQC authorization metadata together form th
 
 ---
 
-## 6.4 ECDSA and ML-DSA Follow the Same SymID Rule
+## 7.4 ECDSA and ML-DSA Follow the Same SymID Rule
 
 SymID composition does not depend on whether the account uses:
 
@@ -531,9 +687,9 @@ The public-key format and size differ by algorithm, but both follow the same Sym
 
 ---
 
-# 7. SymID Verification
+# 8. SymID Verification
 
-## 7.1 Derivation Consistency
+## 8.1 Derivation Consistency
 
 All SymID generation paths MUST derive the same SymID from the same:
 
@@ -545,7 +701,7 @@ The canonical composition rule is defined in Section 4.
 
 ---
 
-## 7.2 Public-Key Binding
+## 8.2 Public-Key Binding
 
 A SymID must remain consistent with the public-key material used for authorization.
 
@@ -562,7 +718,7 @@ VerifySymID(
 
 ---
 
-## 7.3 Sender Verification
+## 8.3 Sender Verification
 
 For a transaction sender, the protocol validates that:
 
@@ -574,9 +730,9 @@ For PQC accounts, this validation uses the account’s PQC authorization metadat
 
 ---
 
-# 8. SymID and Citizen Registration
+# 9. SymID and Citizen Registration
 
-## 8.1 SymID Before Citizen Registration
+## 9.1 SymID Before Citizen Registration
 
 A key pair may be generated before Citizen registration is completed.
 
@@ -584,7 +740,7 @@ The generated SymID identifies the account candidate, but protocol-visible Citiz
 
 ---
 
-## 8.2 Citizen Registration Binding
+## 9.2 Citizen Registration Binding
 
 Citizen registration binds protocol state to the SymID.
 
@@ -597,7 +753,7 @@ This may include:
 
 ---
 
-## 8.3 Citizen Convenience Identifiers Resolve to SymID
+## 9.3 Citizen Convenience Identifiers Resolve to SymID
 
 Citizen Protocol identifiers are designed for user convenience.
 
@@ -627,9 +783,9 @@ The transaction ultimately targets the account resolved from that Nick and is pr
 
 ---
 
-# 9. SymID and CADFork
+# 10. SymID and CADFork
 
-## 9.1 Why SymID Matters for Quantum-Resistant Accounts
+## 10.1 Why SymID Matters for Quantum-Resistant Accounts
 
 SymID provides the account identity layer.  
 PQC signatures provide the authorization layer.  
@@ -650,7 +806,7 @@ CAD
 
 ---
 
-## 9.2 CADFork Direction
+## 10.2 CADFork Direction
 
 After CADFork:
 
@@ -660,9 +816,9 @@ After CADFork:
 
 ---
 
-# 10. SymID Compared with Nick
+# 11. SymID Compared with Nick
 
-## 10.1 SymID
+## 11.1 SymID
 
 SymID is:
 
@@ -674,7 +830,7 @@ SymID is:
 
 ---
 
-## 10.2 Nick
+## 11.2 Nick
 
 Nick is:
 
@@ -688,7 +844,7 @@ It is a convenience identifier that resolves to a SymID-backed account.
 
 ---
 
-## 10.3 Comparison Table
+## 11.3 Comparison Table
 
 | Property | SymID | Nick |
 |---|---|---|
@@ -701,7 +857,7 @@ It is a convenience identifier that resolves to a SymID-backed account.
 
 ---
 
-# 11. Public Query Expectations
+# 12. Public Query Expectations
 
 A public account or Citizen query surface may expose:
 
@@ -718,7 +874,7 @@ The exact RPC field names are defined in the related API specifications.
 
 ---
 
-# 12. Relationship to Other V3 Documents
+# 13. Relationship to Other V3 Documents
 
 | Document | Relationship |
 |---|---|
@@ -731,7 +887,7 @@ The exact RPC field names are defined in the related API specifications.
 
 ---
 
-# 13. Revision History
+# 14. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
@@ -748,3 +904,4 @@ The exact RPC field names are defined in the related API specifications.
 | v0.11 | 2026-05-15 | Expanded the Version `0` Legacy SymID section to preserve the historical Account Document fields, Citizen ID / CA ID / Random / SeqNum model, Legacy account-field semantics, and representative Legacy SymID structure examples while keeping them separate from the Version `1` PQCFork-era composition rule |
 | v0.12 | 2026-05-15 | Simplified the Version `1` SymID composition section by removing non-essential implementation-adjacent explanatory subsections, leaving a more concise specification centered on field layout and public-key-hash derivation |
 | v0.13 | 2026-05-15 | Further tightened the specification by removing unnecessary contrastive legacy wording from the V3 narrative, shortening identity and verification explanations, and keeping the new-version sections focused on direct Version `1` SymID rules |
+| v0.14 | 2026-05-15 | Added a consolidated SymID-and-DID section covering DID form, `did:sym:<SymID>` representation, chain-aware DID expression through embedded ChainID, compact 10-byte SymID efficiency, and the terminology distinction between Decentralized Identifier and Distributed Identifier |
