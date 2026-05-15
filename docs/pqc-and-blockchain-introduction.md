@@ -181,8 +181,142 @@ The urgency of the transition is increasingly being discussed outside purely aca
 - **Project Eleven’s 2026 report** argues that blockchain systems are particularly exposed because addresses may hold meaningful value under the same public key for years, signature schemes are deeply embedded in protocol rules, and a compromised key has no simple recovery mechanism.  
   See: [The Quantum Threat to Blockchains – 2026 Report](https://www.projecteleven.com/blog/the-quantum-threat-to-blockchains---2026-report)
 
-These reports should be read as **risk assessments**, not as proof that a cryptographically relevant quantum computer exists today.  
-No public quantum computer is currently known to be capable of breaking Ethereum’s ECDSA security in practice.  
+---
+
+#### 2.2.5.1 Google Quantum AI Whitepaper: Resource Estimates Are Falling
+
+A particularly important recent contribution is the whitepaper:
+
+```text
+Securing Elliptic Curve Cryptocurrencies against Quantum Vulnerabilities:
+Resource Estimates and Mitigations
+```
+
+The work was publicly highlighted by Google Research on **March 31, 2026**.  
+The arXiv preprint was first submitted on **March 30, 2026**, and the current arXiv version was revised on **April 15, 2026**.
+
+The author group includes researchers from:
+
+- **Google Quantum AI**
+- **Ethereum Foundation**
+- **Stanford University**
+- **University of California, Berkeley**
+
+The paper is notable because it does not merely restate that elliptic-curve cryptography is vulnerable to Shor’s algorithm.  
+It provides **updated quantum resource estimates** for breaking the 256-bit elliptic-curve discrete logarithm problem over:
+
+```text
+secp256k1
+```
+
+which is the elliptic curve used by Bitcoin and widely used in Ethereum-compatible signing environments.
+
+---
+
+#### 2.2.5.2 Core Result: Lower Estimated Quantum Resources
+
+The paper presents two compiled Shor-algorithm circuit estimates for `ECDLP-256`:
+
+| Circuit Estimate | Logical Qubits | Toffoli Gates |
+|---|---:|---:|
+| Estimate A | fewer than 1,200 | fewer than 90 million |
+| Estimate B | fewer than 1,450 | fewer than 70 million |
+
+Under a superconducting fault-tolerant architecture assumption with:
+
+- physical error rate of approximately `10^-3`,
+- planar connectivity,
+
+the paper estimates that these circuits could execute:
+
+```text
+in minutes
+```
+
+using:
+
+```text
+fewer than 500,000 physical qubits.
+```
+
+Google Research summarizes this as an approximately:
+
+```text
+20-fold reduction
+```
+
+in the number of physical qubits required to solve `ECDLP-256`, relative to prior 2023-era estimates.
+
+This is important for blockchain security because the threat is not merely that quantum hardware may improve.  
+The **quantum algorithms and fault-tolerant circuit constructions are also becoming more efficient**.
+
+---
+
+#### 2.2.5.3 Responsible Disclosure via Zero-Knowledge Proof
+
+The paper also introduces a responsible-disclosure approach.
+
+Rather than publishing every detailed attack circuit in a way that could prematurely aid malicious actors, the authors use a:
+
+```text
+zero-knowledge proof
+```
+
+to substantiate that their compiled circuits correctly implement critical elliptic-curve arithmetic without fully disclosing sensitive attack details.
+
+The supporting material released with the paper includes a zero-knowledge proof verification artifact for elliptic-curve point addition on `secp256k1`.
+
+This is significant because the paper aims to balance:
+
+- scientific verifiability,
+- responsible disclosure,
+- and the need to warn cryptocurrency communities early.
+
+---
+
+#### 2.2.5.4 Implication for Blockchain Timing
+
+The Google Quantum AI paper distinguishes between:
+
+- **fast-clock** quantum architectures, such as superconducting and photonic systems,
+- **slow-clock** architectures, such as neutral-atom and ion-trap systems.
+
+Its analysis argues that the first sufficiently capable **fast-clock CRQCs** could enable:
+
+```text
+on-spend attacks
+```
+
+against public mempool transactions in some cryptocurrencies.
+
+In plain terms:
+
+1. a transaction reveals or enables recovery of public-key material,
+2. the attacker races to derive the private key,
+3. the attacker attempts to sign a competing transaction before settlement.
+
+This is why public-key exposure and mempool timing matter in quantum-risk analysis.
+
+---
+
+#### 2.2.5.5 How This Strengthens the Case for Early PQC Migration
+
+These reports and papers should be read as **risk assessments and resource-estimation studies**, not as proof that a cryptographically relevant quantum computer exists today.  
+No public quantum computer is currently known to be capable of breaking Ethereum’s ECDSA security in practice.
+
+However, the strategic conclusion becomes stronger:
+
+```text
+Blockchain migration should not wait until quantum hardware is already capable.
+```
+
+The Google Quantum AI work shows that:
+
+- the mathematical threat is well understood,
+- the required attack resources are being revised downward,
+- zero-knowledge verification can support responsible disclosure of resource estimates,
+- and blockchain-specific exposure models, such as mempool on-spend attacks, deserve immediate attention.
+
 The problem is that blockchain migration takes years, and the exposure surface may already exist long before the attack machine arrives.
 
 ---
@@ -853,6 +987,9 @@ The algorithm names, parameter sets, security categories, and byte sizes in this
 - Deloitte — quantitative analysis of quantum-exposed Ether
 - Tiger Research — blockchain Q-Day risk framing
 - Project Eleven — 2026 blockchain quantum-threat report
+- Babbush et al. — *Securing Elliptic Curve Cryptocurrencies against Quantum Vulnerabilities: Resource Estimates and Mitigations*
+- Google Research — March 31, 2026 announcement on responsible disclosure of cryptocurrency quantum vulnerabilities
+- Zenodo supporting artifact for the paper’s zero-knowledge proof verification data
 - SEC 2 — `secp256k1` 256-bit elliptic curve domain parameters
 - SEC 1 — elliptic-curve public-key point encoding rules
 - Ethereum Yellow Paper — `secp256k1` transaction-signing representation and `(v,r,s)` signature fields
@@ -882,3 +1019,4 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 | v0.6 | 2026-05-15 | Expanded Falcon discussion to explain its pre-final-standardization status, blockchain adoption motivation, and why CAD avoids selecting a long-term signature strategy mainly from raw signature size |
 | v0.7 | 2026-05-15 | Added ECDSA/secp256k1 blockchain baseline specification and direct ECDSA-vs-PQC comparison tables for key and signature sizes |
 | v0.8 | 2026-05-15 | Expanded the transition rationale with ECDLP, Shor’s algorithm, Quantum Fourier Transform, Ethereum recoverable signatures, public-key exposure, and linked risk analyses from Ethereum.org, Deloitte, Tiger Research, and Project Eleven |
+| v0.9 | 2026-05-15 | Added Google Quantum AI / Ethereum Foundation / Stanford / UC Berkeley whitepaper discussion, updated secp256k1 resource estimates, 20-fold physical-qubit reduction framing, zero-knowledge-proof disclosure note, and fast-clock on-spend attack implications |
