@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.3  
+> **Status:** Draft v0.4  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -12,10 +12,11 @@ The **SymVerse V3 Citizen Protocol** defines how a Citizen identity is created, 
 
 The protocol covers:
 
-- Citizen public alias management through `NickName`
-- Deterministic Citizen referral codes through `RefCode`
+- Citizen public identity management through `NickName`
+- NickName as a globally unique Citizen lookup key
+- Citizen referral codes through `RefCode`
 - Referrer registration through an existing Citizen’s RefCode
-- Link and LinkedBy relations between Citizens
+- Link and LinkedBy relations created through NickName resolution
 - Credit accumulation from Citizen relationship operations
 - Publicly visible query results and transaction-level operation rules
 
@@ -169,59 +170,25 @@ A RefCode:
 
 `RefCode` is the Citizen’s permanent referral code.
 
-It is used by another Citizen when creating a Referrer relation.
+It is assigned automatically when a Citizen is confirmed and may be used by another Citizen to create a Referrer relation.
 
 ---
 
-## 5.2 Generation formula
-
-```text
-refCode = (citizenBlockNumber << 12) | citizenIndex
-```
-
-| Field | Value |
-|---|---:|
-| Citizen index bit width | 12 bits |
-| Maximum Citizens per CitizenBlock | 4096 |
-| `citizenIndex` range | `0 ~ 4095` |
-| Block-number region | 52 bits |
-
----
-
-## 5.3 Example RefCodes
-
-| CitizenBlock | Index | RefCode | Full display example |
-|---:|---:|---:|---|
-| 1 | 0 | 4096 | `0000-0000-4096` |
-| 2 | 0 | 8192 | `0000-0000-8192` |
-| 2 | 1 | 8193 | `0000-0000-8193` |
-| 3 | 1 | 12289 | `0000-0001-2289` |
-
----
-
-## 5.4 Reverse calculation
-
-A RefCode may be decomposed as:
-
-```text
-citizenBlockNumber = refCode >> 12
-citizenIndex       = refCode & 0xfff
-```
-
----
-
-## 5.5 RefCode lifecycle
+## 5.2 RefCode lifecycle
 
 | Action | Allowed? |
 |---|---:|
-| Automatic creation at Citizen confirmation | Yes |
+| Automatic assignment at Citizen confirmation | Yes |
+| User-selected value | No |
 | Transaction create | No |
 | Transaction update | No |
 | Transaction delete | No |
 
+RefCode is a protocol-assigned, immutable Citizen property.
+
 ---
 
-## 5.6 Public display format
+## 5.3 Public display format
 
 A RefCode may be displayed in a compact user-facing `ownCode` form.
 
@@ -233,26 +200,141 @@ A RefCode may be displayed in a compact user-facing `ownCode` form.
 | 12289 | `0000-0001-2289` | `0001-2289` |
 | 100002289 | `0001-0000-2289` | `0001-0000-2289` |
 
+The display format is intended to make Citizen referral codes easier to read and share.
+
 ---
 
 # 6. NickName Policy
 
-## 6.1 Meaning
+## 6.1 Why NickName Is Central to the Citizen Protocol
 
-`NickName` is a public alias that represents a Citizen in user-facing queries and Link operations.
+`NickName` is the primary public alias of a Citizen.
+
+The Citizen Protocol is designed around NickName because it provides:
+
+- a human-readable Citizen identifier,
+- a globally unique public lookup key within the blockchain,
+- a stable input for Citizen discovery,
+- the basis for NickName-driven Link creation,
+- a user-facing identity layer distinct from raw blockchain addresses.
+
+In practical terms:
+
+```text
+Address identifies a blockchain account.
+NickName identifies a Citizen in a human-readable way.
+```
+
+A NickName is not merely a display label.  
+It is a **protocol-recognized unique Citizen key**.
 
 ---
 
-## 6.2 Citizen creation with NickName
+## 6.2 NickName as a Unique Blockchain Key
+
+A valid NickName must be unique within the Citizen protocol domain.
+
+```text
+One NickName → One Citizen
+```
+
+At any given state:
+
+- the same NickName cannot be owned by multiple Citizens,
+- a Citizen query by NickName must resolve to a single owner,
+- Link operations using NickName must resolve to exactly one target Citizen.
+
+This uniqueness is fundamental to the Citizen Protocol.
+
+Example:
+
+```text
+NickName "target01"
+  → resolves to exactly one Citizen
+```
+
+If another Citizen attempts to register the same NickName, the operation must be rejected.
+
+---
+
+## 6.3 Domain-Label Style NickName Rule
+
+NickName follows a **domain-label style rule**.
+
+The purpose is to ensure that NickNames are:
+
+- simple to type,
+- predictable to normalize,
+- safe to use as protocol keys,
+- suitable for use in public lookup and relationship operations.
+
+The baseline NickName rule is:
+
+| Rule | Policy |
+|---|---|
+| Minimum length | 6 characters |
+| Leading/trailing spaces | Removed |
+| Case handling | Normalized to lowercase |
+| Empty string | Rejected |
+| Protocol role | Unique Citizen lookup key |
+
+The minimum length of **6 characters** is important.  
+It prevents overly short labels and keeps NickNames closer to a domain-label-style public identifier than a casual one- or two-character alias.
+
+Examples of valid fixture-style NickNames:
+
+```text
+addra01
+bddra01
+target01
+second01
+```
+
+---
+
+## 6.4 NickName Normalization
+
+Before a NickName is registered or used as a transaction input, it is normalized.
+
+Normalization policy:
+
+```text
+1. Trim leading and trailing spaces
+2. Convert to lowercase
+3. Validate minimum length
+```
+
+Examples:
+
+| Input | Normalized Value |
+|---|---|
+| `" Target01 "` | `target01` |
+| `"ADDRA01"` | `addra01` |
+| `" abc "` | rejected because normalized length is below 6 |
+
+Normalization ensures that logically equivalent NickNames do not create duplicate registry keys.
+
+---
+
+## 6.5 Citizen Creation with NickName
+
+A Citizen may receive an initial NickName at confirmation.
 
 | Case | Result |
 |---|---|
 | Citizen is created with a valid NickName | NickName is initially registered |
 | Citizen is created without a NickName | Citizen has no initial NickName |
 
+Example:
+
+```text
+Citizen A is confirmed with NickName "addra01"
+→ "addra01" becomes the public Citizen key for Citizen A
+```
+
 ---
 
-## 6.3 CreateNickName
+## 6.6 CreateNickName
 
 `CreateNickName` is allowed only if the Citizen currently has no NickName.
 
@@ -261,9 +343,15 @@ A RefCode may be displayed in a compact user-facing `ownCode` form.
 | `NO_NICK` | Allowed |
 | `HAS_NICK` | Rejected |
 
+The requested NickName must:
+
+- satisfy the NickName validation rule,
+- not already belong to another Citizen,
+- become the Citizen’s unique public NickName when accepted.
+
 ---
 
-## 6.4 DeleteNickName
+## 6.7 DeleteNickName
 
 `DeleteNickName` is allowed only if the Citizen currently has a NickName.
 
@@ -272,16 +360,36 @@ A RefCode may be displayed in a compact user-facing `ownCode` form.
 | `HAS_NICK` | Allowed |
 | `NO_NICK` | Rejected |
 
+Deletion releases the Citizen’s current NickName from ownership.
+
+After deletion:
+
+- the Citizen has no NickName,
+- the deleted NickName no longer resolves to that Citizen,
+- a new NickName may later be created through `CreateNickName`.
+
 ---
 
-## 6.5 NickName change policy
+## 6.8 NickName Change Process
 
-NickName does not support direct update.
+NickName does **not** support direct update.
 
-A NickName change is performed as:
+A NickName change is performed as a two-step protocol process:
 
 ```text
 DeleteNickName → CreateNickName
+```
+
+Example:
+
+```text
+Citizen A currently owns "addra01"
+
+1. DeleteNickName
+   → Citizen A no longer owns "addra01"
+
+2. CreateNickName("bddra01")
+   → Citizen A now owns "bddra01"
 ```
 
 State transitions:
@@ -293,26 +401,39 @@ HAS_NICK --CreateNickName--> reject
 NO_NICK  --DeleteNickName--> reject
 ```
 
+This explicit two-step process keeps NickName ownership changes clear and auditable.
+
 ---
 
-## 6.6 NickName validation
+## 6.9 NickName Use in Link Operations
 
-Input NickName values follow the same normalization and validation policy:
+NickName is also the target identifier for Link creation and deletion.
 
-| Rule | Policy |
+| Operation | NickName Role |
 |---|---|
-| Trim | Leading and trailing spaces removed |
-| Normalize | Lowercase |
-| Minimum length | 6 characters |
-| Empty string | Rejected |
+| `CreateLink` | Target Citizen is selected by NickName |
+| `DeleteLink` | Existing Link target is selected by NickName |
 
-Validation applies to:
+Because Link operations depend on NickName resolution:
 
-- `CreateNickName`
-- `CreateLink`
-- `DeleteLink`
+- target NickName must be valid,
+- target NickName must resolve to an existing Citizen,
+- Link creation cannot rely on ambiguous or duplicate identifiers.
 
-`DeleteNickName` refers to the Citizen’s current NickName and therefore does not require a NickName input.
+This is another reason NickName uniqueness is foundational to the Citizen Protocol.
+
+---
+
+## 6.10 NickName Validation Scope
+
+The NickName validation rule applies to:
+
+- Citizen creation with NickName,
+- `CreateNickName`,
+- `CreateLink`,
+- `DeleteLink`.
+
+`DeleteNickName` acts on the Citizen’s current NickName and therefore does not require a NickName input.
 
 ---
 
@@ -671,6 +792,9 @@ RefCode = immutable deterministic code assigned at Citizen confirmation
 
 ## 14.1 NickName
 
+- Core public Citizen identifier.
+- Globally unique Citizen lookup key within the protocol domain.
+- Minimum 6-character domain-label-style rule.
 - May be registered during Citizen confirmation.
 - May be created by transaction only if no NickName exists.
 - Change requires:
@@ -683,13 +807,7 @@ DeleteNickName → CreateNickName
 
 ## 14.2 RefCode
 
-- Automatically generated at Citizen confirmation.
-- Formula:
-
-```text
-(CitizenBlockNumber << 12) | CitizenIndex
-```
-
+- Automatically assigned at Citizen confirmation.
 - Immutable.
 - Cannot be created, updated, or deleted by membership transaction.
 
@@ -736,3 +854,4 @@ DeleteLink
 | v0.1 | 2026-05-15 | Initial Citizen Protocol specification draft |
 | v0.2 | 2026-05-15 | Expanded Citizen runtime and operation policy from internal implementation notes |
 | v0.3 | 2026-05-15 | Rewritten as a public-facing protocol specification by removing internal storage layout, internal function names, block-processing insertion details, and simulator validation procedures while strengthening external operation rules and public query behavior |
+| v0.4 | 2026-05-15 | Simplified RefCode presentation by removing implementation-oriented derivation details and substantially expanded NickName as the core Citizen identifier, including uniqueness, domain-label-style validation, normalization, lifecycle, change process, and Link resolution role |
