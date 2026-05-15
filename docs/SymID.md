@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.4  
+> **Status:** Draft v0.5  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -68,19 +68,26 @@ ChainID
 The public SymID composition is:
 
 ```text
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
 → SymID
 ```
 
-| Component | Role |
-|---|---|
-| `Version` | SymID format/version discriminator |
-| `ChainID` | Chain-binding component |
-| `PublicKeyHash (last 8 bytes)` | Key-derived account component |
+| Component | Size | Role |
+|---|---:|---|
+| `Version` | 2 bits | SymID format/version discriminator |
+| `ChainID` | 14 bits | Chain-binding component |
+| `PublicKeyHash` | 8 bytes used | Last 8 bytes of `SHA3-256(public key)` |
 
-This makes the same public key produce a SymID only within the intended chain context.
+This field layout makes the SymID derivation rule publicly reproducible.  
+Any party that knows:
+
+- the public key,
+- the Version,
+- the ChainID,
+
+can derive the same SymID.
 
 `CaID` is not part of the V3 SymID derivation policy.  
 The chain-binding component is:
@@ -166,9 +173,9 @@ PrivateKey → PublicKey → PublicKeyHash → SymID
 with the final SymID composed as:
 
 ```text
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
 → SymID
 ```
 
@@ -213,12 +220,12 @@ The typical V3 account creation flow is:
 2. Generate private key and public key.
 3. Set SymID Version.
 4. Set target ChainID.
-5. Compute the public-key hash.
-6. Take the last 8 bytes of that hash.
+5. Compute SHA3-256(public key).
+6. Take the last 8 bytes of that 32-byte hash.
 7. Compose SymID from:
-   - Version
-   - ChainID
-   - PublicKeyHash (last 8 bytes)
+   - Version (2 bits)
+   - ChainID (14 bits)
+   - PublicKeyHash (SHA3-256, last 8 bytes)
 8. Register the account/Citizen state as required by the protocol.
 ```
 
@@ -226,10 +233,12 @@ For PQC-capable accounts, the public key may be significantly larger than an ECD
 
 ```text
 PublicKey
-  → PublicKeyHash
+  → SHA3-256(public key)
   → last 8 bytes
-  → SymID component
+  → SymID key-derived component
 ```
+
+This means that SymID derivation is reproducible for both classical and post-quantum account types.
 
 ---
 
@@ -240,46 +249,83 @@ PublicKey
 The V3 SymID composition is:
 
 ```text
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
 → SymID
 ```
 
 This is the primary public description of SymID.
 
+The composition uses:
+
+```text
+Version      : 2 bits
+ChainID      : 14 bits
+PublicKeyHash: final 8 bytes of SHA3-256(public key)
+```
+
+Together, these components form a compact and deterministic SymID.
+
 ---
 
 ## 4.2 Component Meaning
 
-| Component | Meaning |
-|---|---|
-| `Version` | SymID version |
-| `ChainID` | Chain identifier |
-| `PublicKeyHash (last 8 bytes)` | Final 8 bytes of the hash derived from the account public key |
+| Component | Size | Meaning |
+|---|---:|---|
+| `Version` | 2 bits | SymID version |
+| `ChainID` | 14 bits | Chain identifier |
+| `PublicKeyHash (last 8 bytes)` | 8 bytes | Final 8 bytes of `SHA3-256(public key)` |
 
 ---
 
-## 4.3 Derivation Flow
+## 4.3 PublicKeyHash Rule
+
+The `PublicKeyHash` component MUST be derived as follows:
+
+```text
+PublicKeyHashFull = SHA3-256(public key)
+PublicKeyHash     = last 8 bytes of PublicKeyHashFull
+```
+
+In other words:
+
+```text
+PublicKey
+  → SHA3-256(public key)
+  → 32-byte hash
+  → take bytes 24 through 31
+  → PublicKeyHash (8 bytes)
+```
+
+This rule is part of the public SymID specification so that any implementation can reproduce the same SymID from the same inputs.
+
+---
+
+## 4.4 Derivation Flow
 
 The derivation flow is:
 
 ```text
 PublicKey
-  → PublicKeyHash
-  → take last 8 bytes
+  → SHA3-256(public key)
+  → last 8 bytes
 
-Version
-ChainID
+Version (2 bits)
+ChainID (14 bits)
 PublicKeyHash (last 8 bytes)
   → SymID
 ```
 
-This allows SymID to remain compact while preserving a deterministic relationship with the account public key and chain context.
+A party can derive a SymID by following the above flow with the same:
+
+- public key,
+- Version,
+- ChainID.
 
 ---
 
-## 4.4 Input Validation
+## 4.5 Input Validation
 
 SymID derivation MUST reject invalid input.
 
@@ -291,7 +337,7 @@ SymID derivation MUST reject invalid input.
 
 ---
 
-## 4.5 ChainID Replaces CA-Oriented Prefixing
+## 4.6 ChainID Replaces CA-Oriented Prefixing
 
 The V3 SymID derivation policy uses:
 
@@ -305,7 +351,7 @@ Legacy CA-style prefixing is outside the V3 SymID composition model.
 
 ---
 
-## 4.6 Not Address-plus-Nonce Derivation
+## 4.7 Not Address-plus-Nonce Derivation
 
 The V3 SymID derivation rule MUST NOT be confused with:
 
@@ -319,12 +365,12 @@ The V3 rule is:
 
 ```text
 PublicKey
-  → PublicKeyHash
+  → SHA3-256(public key)
   → last 8 bytes
 
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
   → SymID
 ```
 
@@ -332,7 +378,7 @@ No external package or creation path should infer an alternative SymID derivatio
 
 ---
 
-## 4.7 Same Composition for ECDSA and PQC
+## 4.8 Same Composition for ECDSA and PQC
 
 The same SymID composition policy applies to:
 
@@ -371,7 +417,7 @@ Conceptually:
 ```text
 ECDSA private key
   → ECDSA public key
-  → PublicKeyHash
+  → SHA3-256(public key)
   → last 8 bytes
   → SymID
 ```
@@ -389,7 +435,7 @@ Conceptually:
 ```text
 PQC private key
   → PQC public key
-  → PublicKeyHash
+  → SHA3-256(public key)
   → last 8 bytes
   → ChainID-bound SymID
 ```
@@ -429,9 +475,9 @@ All SymID generation paths MUST derive the same SymID from the same:
 The public composition rule remains:
 
 ```text
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
 → SymID
 ```
 
@@ -459,12 +505,12 @@ Verification replays the same public composition rule:
 
 ```text
 PublicKey
-  → PublicKeyHash
+  → SHA3-256(public key)
   → last 8 bytes
 
-Version
-ChainID
-PublicKeyHash (last 8 bytes)
+Version (2 bits)
+ChainID (14 bits)
+PublicKeyHash (SHA3-256, last 8 bytes)
   → SymID
 ```
 
@@ -657,3 +703,4 @@ The exact RPC field names are defined in the related API specifications.
 | v0.2 | 2026-05-15 | Rewritten for the quantum-resistant V3 architecture: one key pair maps to one SymID, ChainID replaces CA ID as the public chain-binding concept, issuer-hierarchy assumptions are removed, and PQC account/CAD/Citizen Protocol relationships are defined |
 | v0.3 | 2026-05-15 | Rewritten around the concrete V3 SymID derivation policy: public key hashing, last-8-byte public-key-hash component, explicit invalid-input rejection, and unified ECDSA/PQC derivation rules |
 | v0.4 | 2026-05-15 | Simplified the public SymID description to `Version + ChainID + PublicKeyHash (last 8 bytes) → SymID` and removed internal construction-function references from the public specification |
+| v0.5 | 2026-05-15 | Added publicly reproducible SymID field sizes and hash rule: `Version = 2 bits`, `ChainID = 14 bits`, and `PublicKeyHash = last 8 bytes of SHA3-256(public key)` |
