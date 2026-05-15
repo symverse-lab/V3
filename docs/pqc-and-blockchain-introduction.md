@@ -1,6 +1,6 @@
 # Post-Quantum Cryptography and Blockchain
 
-> **Status:** Draft v0.3  
+> **Status:** Draft v0.5  
 > **Date:** 2026-05-15  
 > **Document Role:** Background introduction for the SymVerse V3 documentation set  
 > **Audience:** Developers, blockchain operators, researchers, and readers new to post-quantum blockchain design
@@ -22,7 +22,9 @@ This document introduces:
 4. The **actual byte sizes** of PQC keys and signatures
 5. Why those sizes matter for blockchain transaction and consensus design
 6. Where **Falcon / FN-DSA** fits in the standardization landscape
-7. How these concerns connect to the SymVerse V3 documentation set
+7. What **NIST Security Levels** mean
+8. Why SymVerse plans to recommend **ML-DSA-87** after CADFork
+9. How these concerns connect to the SymVerse V3 documentation set
 
 This is a **background primer**, not a finalized protocol specification.
 
@@ -98,11 +100,11 @@ These parameter sets trade off:
 
 ## 4.2 ML-DSA Key and Signature Sizes
 
-| Parameter Set | NIST Security Category | Private Key | Public Key | Signature |
+| Parameter Set | NIST Security Level | Private Key | Public Key | Signature |
 |---|---:|---:|---:|---:|
-| **ML-DSA-44** | Category 2 | 2,560 bytes | 1,312 bytes | 2,420 bytes |
-| **ML-DSA-65** | Category 3 | 4,032 bytes | 1,952 bytes | 3,309 bytes |
-| **ML-DSA-87** | Category 5 | 4,896 bytes | 2,592 bytes | 4,627 bytes |
+| **ML-DSA-44** | Level 2 | 2,560 bytes | 1,312 bytes | 2,420 bytes |
+| **ML-DSA-65** | Level 3 | 4,032 bytes | 1,952 bytes | 3,309 bytes |
+| **ML-DSA-87** | Level 5 | 4,896 bytes | 2,592 bytes | 4,627 bytes |
 
 ### Practical interpretation
 
@@ -141,14 +143,14 @@ The table below groups SHA2 and SHAKE variants together where the standardized p
 > `(SK.seed, SK.prf, PK.seed, PK.root)`, where each component is `n` bytes.  
 > Thus, the private-key size is `4n`.
 
-| Parameter Set Family | NIST Security Category | Private Key | Public Key | Signature |
+| Parameter Set Family | NIST Security Level | Private Key | Public Key | Signature |
 |---|---:|---:|---:|---:|
-| **SLH-DSA-128s** (`SHA2-128s`, `SHAKE-128s`) | Category 1 | 64 bytes | 32 bytes | 7,856 bytes |
-| **SLH-DSA-128f** (`SHA2-128f`, `SHAKE-128f`) | Category 1 | 64 bytes | 32 bytes | 17,088 bytes |
-| **SLH-DSA-192s** (`SHA2-192s`, `SHAKE-192s`) | Category 3 | 96 bytes | 48 bytes | 16,224 bytes |
-| **SLH-DSA-192f** (`SHA2-192f`, `SHAKE-192f`) | Category 3 | 96 bytes | 48 bytes | 35,664 bytes |
-| **SLH-DSA-256s** (`SHA2-256s`, `SHAKE-256s`) | Category 5 | 128 bytes | 64 bytes | 29,792 bytes |
-| **SLH-DSA-256f** (`SHA2-256f`, `SHAKE-256f`) | Category 5 | 128 bytes | 64 bytes | 49,856 bytes |
+| **SLH-DSA-128s** (`SHA2-128s`, `SHAKE-128s`) | Level 1 | 64 bytes | 32 bytes | 7,856 bytes |
+| **SLH-DSA-128f** (`SHA2-128f`, `SHAKE-128f`) | Level 1 | 64 bytes | 32 bytes | 17,088 bytes |
+| **SLH-DSA-192s** (`SHA2-192s`, `SHAKE-192s`) | Level 3 | 96 bytes | 48 bytes | 16,224 bytes |
+| **SLH-DSA-192f** (`SHA2-192f`, `SHAKE-192f`) | Level 3 | 96 bytes | 48 bytes | 35,664 bytes |
+| **SLH-DSA-256s** (`SHA2-256s`, `SHAKE-256s`) | Level 5 | 128 bytes | 64 bytes | 29,792 bytes |
+| **SLH-DSA-256f** (`SHA2-256f`, `SHAKE-256f`) | Level 5 | 128 bytes | 64 bytes | 49,856 bytes |
 
 ### Practical interpretation
 
@@ -164,9 +166,113 @@ The transaction, block, and commitment structure may need to evolve as well.
 
 ---
 
-# 6. Falcon / FN-DSA Specification Snapshot
+# 6. Understanding NIST Security Levels
 
-## 6.1 What Is Falcon?
+## 6.1 Why NIST Uses Categories Instead of a Single “Bit Security” Number
+
+NIST does not classify post-quantum algorithms only by a single exact “bits of security” estimate.  
+Because future quantum-computer capabilities and future cryptanalytic advances are uncertain, this document uses the reader-friendly term **NIST Security Level**.
+
+> **Terminology note:**  
+> NIST’s official documents use the term **security category**.  
+> In this V3 documentation, we display it as **NIST Security Level** so that non-specialist readers can understand it more easily.
+
+The categories are defined by comparison with well-understood symmetric-cryptography attack targets.
+
+---
+
+## 6.2 NIST Security Level Reference Table
+
+| NIST Security Level | Reference Attack Difficulty |
+|---|---|
+| **Level 1** | At least as hard as key search on **AES-128** |
+| **Level 2** | At least as hard as collision search on **SHA-256 / SHA3-256** |
+| **Level 3** | At least as hard as key search on **AES-192** |
+| **Level 4** | At least as hard as collision search on **SHA-384 / SHA3-384** |
+| **Level 5** | At least as hard as key search on **AES-256** |
+
+This does **not** mean that a Level 5 PQC scheme is literally “AES-256.”  
+It means that NIST’s official **security category** for that scheme corresponds to an attack-difficulty target comparable to or greater than the listed reference target.  
+This document labels those categories as **Security Levels** for readability.
+
+---
+
+## 6.3 How to Read Categories 1, 3, and 5
+
+For practical interpretation:
+
+| Category | Practical Reading |
+|---|---|
+| **Level 1** | Baseline high-security PQC level; roughly aligned with 128-bit classical security expectations |
+| **Level 3** | Stronger long-term margin; roughly aligned with 192-bit classical security expectations |
+| **Level 5** | Highest standard category in this scale; roughly aligned with 256-bit classical security expectations |
+
+NIST’s FAQ explains that Categories **1, 3, and 5** are intended to be consistent with schemes that provide classical security strengths of approximately **128, 192, and 256 bits**, respectively, assuming they are not subject to stronger specialized quantum attacks beyond generic quantum speedups.
+
+---
+
+## 6.4 ML-DSA Parameter Sets and NIST Categories
+
+| ML-DSA Parameter Set | NIST Security Level | Practical Interpretation |
+|---|---:|---|
+| **ML-DSA-44** | Level 2 | Moderate-to-strong security margin with the smallest ML-DSA signature size |
+| **ML-DSA-65** | Level 3 | Higher security margin with larger keys and signatures |
+| **ML-DSA-87** | Level 5 | Highest ML-DSA security category and the strongest long-term margin among the standardized ML-DSA parameter sets |
+
+NIST FIPS 204 identifies:
+
+- `ML-DSA-44` as Level 2,
+- `ML-DSA-65` as Level 3,
+- `ML-DSA-87` as Level 5.
+
+---
+
+## 6.5 SymVerse Direction After CADFork
+
+SymVerse plans to recommend:
+
+```text
+ML-DSA-87
+```
+
+as the preferred PQC signature parameter set **after CADFork**.
+
+The reasoning is architectural:
+
+1. **ML-DSA-87 provides Level 5 security**, the highest ML-DSA category in FIPS 204.
+2. Its larger signature size would normally raise blockchain storage and propagation concerns.
+3. **CAD is designed precisely to decouple consensus commitment size from raw signature size.**
+4. Therefore, after CADFork, SymVerse can prioritize a stronger long-term security margin without making consensus-committed storage scale directly with the larger raw signature bytes.
+
+This is a **SymVerse protocol recommendation**, not a NIST requirement.  
+NIST standardizes ML-DSA parameter sets and their security categories; SymVerse determines which parameter set it recommends for its blockchain architecture.
+
+---
+
+## 6.6 Practical Comparison Within ML-DSA
+
+| Parameter Set | Category | Signature Size | SymVerse CADFork Position |
+|---|---:|---:|---|
+| **ML-DSA-44** | 2 | 2,420 bytes | Smaller, but not the recommended post-CADFork target |
+| **ML-DSA-65** | 3 | 3,309 bytes | Intermediate option |
+| **ML-DSA-87** | 5 | 4,627 bytes | **Recommended by SymVerse after CADFork** |
+
+This comparison helps explain the role of CAD:
+
+```text
+Without CAD:
+  larger signatures create stronger pressure on block and ledger size.
+
+With CAD:
+  the chain can recommend a stronger signature parameter set
+  while keeping the consensus commitment path fixed-size.
+```
+
+---
+
+# 7. Falcon / FN-DSA Specification Snapshot
+
+## 7.1 What Is Falcon?
 
 **Falcon** is a lattice-based post-quantum digital signature scheme selected by NIST for standardization.  
 NIST’s future standard based on Falcon is named:
@@ -186,12 +292,12 @@ Falcon is especially relevant to blockchain design because it offers:
 
 ---
 
-## 6.2 Falcon Key and Signature Sizes
+## 7.2 Falcon Key and Signature Sizes
 
-| Parameter Set | Approx. NIST Security Category | Private Key | Public Key | Signature |
+| Parameter Set | Approx. NIST Security Level | Private Key | Public Key | Signature |
 |---|---:|---:|---:|---:|
-| **Falcon-512** | Category 1 | 1,281 bytes | 897 bytes | 666 bytes |
-| **Falcon-1024** | Category 5 | 2,305 bytes | 1,793 bytes | 1,280 bytes |
+| **Falcon-512** | Level 1 | 1,281 bytes | 897 bytes | 666 bytes |
+| **Falcon-1024** | Level 5 | 2,305 bytes | 1,793 bytes | 1,280 bytes |
 
 ### Practical interpretation
 
@@ -217,7 +323,7 @@ At the same time, the implementation trade-off is important:
 
 ---
 
-## 6.3 Standardization Status
+## 7.3 Standardization Status
 
 Falcon should be presented differently from ML-DSA and SLH-DSA:
 
@@ -235,9 +341,9 @@ For SymVerse V3 documentation, Falcon is useful to include because:
 
 ---
 
-# 7. ML-KEM Specification Snapshot
+# 8. ML-KEM Specification Snapshot
 
-## 7.1 What Is ML-KEM?
+## 8.1 What Is ML-KEM?
 
 **ML-KEM** is NIST’s module-lattice-based key-encapsulation mechanism.  
 It is used to establish shared secrets over a public channel.
@@ -251,19 +357,19 @@ ML-KEM is not used to sign blockchain transactions, but it is part of the broade
 
 ---
 
-## 7.2 ML-KEM Key and Ciphertext Sizes
+## 8.2 ML-KEM Key and Ciphertext Sizes
 
 | Parameter Set | Security Category | Encapsulation Key | Decapsulation Key | Ciphertext | Shared Secret |
 |---|---:|---:|---:|---:|---:|
-| **ML-KEM-512** | Category 1 | 800 bytes | 1,632 bytes | 768 bytes | 32 bytes |
-| **ML-KEM-768** | Category 3 | 1,184 bytes | 2,400 bytes | 1,088 bytes | 32 bytes |
-| **ML-KEM-1024** | Category 5 | 1,568 bytes | 3,168 bytes | 1,568 bytes | 32 bytes |
+| **ML-KEM-512** | Level 1 | 800 bytes | 1,632 bytes | 768 bytes | 32 bytes |
+| **ML-KEM-768** | Level 3 | 1,184 bytes | 2,400 bytes | 1,088 bytes | 32 bytes |
+| **ML-KEM-1024** | Level 5 | 1,568 bytes | 3,168 bytes | 1,568 bytes | 32 bytes |
 
 ---
 
-# 8. Why These Numbers Matter for Blockchain
+# 9. Why These Numbers Matter for Blockchain
 
-## 8.1 Digital Signatures Are Central to Transaction Authorization
+## 9.1 Digital Signatures Are Central to Transaction Authorization
 
 A blockchain account is typically controlled through a private key.  
 A transaction is accepted only when the network can verify that the proper key holder authorized it.
@@ -279,7 +385,7 @@ If the signature scheme protecting accounts becomes breakable, an attacker may b
 
 ---
 
-## 8.2 PQC Signatures Are Much Larger
+## 9.2 PQC Signatures Are Much Larger
 
 The signature-size landscape above shows that:
 
@@ -302,7 +408,7 @@ They can materially affect:
 
 ---
 
-## 8.3 Blockchain Design Must Consider Commitment Structure
+## 9.3 Blockchain Design Must Consider Commitment Structure
 
 If a blockchain permanently commits raw post-quantum signature bytes inside its consensus object, larger signatures may lead to sharply increased long-term replication and storage burden.
 
@@ -322,7 +428,7 @@ what should consensus permanently commit?
 
 ---
 
-# 9. Public-Key Exposure and Migration
+# 10. Public-Key Exposure and Migration
 
 In many blockchain designs, a public key or verification material becomes visible once a transaction is broadcast.
 
@@ -336,7 +442,7 @@ The exact exposure model differs by blockchain design, but the general post-quan
 
 ---
 
-# 10. How This Connects to SymVerse V3
+# 11. How This Connects to SymVerse V3
 
 The SymVerse V3 documentation set addresses PQC transition across several layers.
 
@@ -354,7 +460,7 @@ The SymVerse V3 documentation set addresses PQC transition across several layers
 
 ---
 
-# 11. Practical Takeaway
+# 12. Practical Takeaway
 
 Post-quantum blockchain design is not only about replacing one signature algorithm with another.
 
@@ -367,9 +473,11 @@ The standardized parameter tables show why:
 
 SymVerse V3 treats PQC as a **protocol architecture topic**, not merely as a cryptographic plug-in.
 
+In that architecture, **CADFork** is important because it allows SymVerse to recommend the stronger `ML-DSA-87` parameter set while avoiding a consensus-commitment model that grows directly with raw PQC signature size.
+
 ---
 
-# 12. Recommended Reading Path
+# 13. Recommended Reading Path
 
 For readers new to the V3 documents:
 
@@ -385,7 +493,7 @@ For readers new to the V3 documents:
 
 ---
 
-# 13. Source Notes
+# 14. Source Notes
 
 The algorithm names, parameter sets, security categories, and byte sizes in this document are based on:
 
@@ -394,6 +502,7 @@ The algorithm names, parameter sets, security categories, and byte sizes in this
 - NIST FIPS 205 — SLH-DSA
 - NIST PQC standardization materials for Falcon / future FN-DSA (FIPS 206 in development)
 - The Falcon submitter specification and reference materials for Falcon-512 and Falcon-1024 size data
+- NIST PQC security evaluation criteria and FAQ materials for the meaning of Security Categories 1–5
 
 For SLH-DSA, the private-key byte sizes are derived from the standardized private-key structure defined in FIPS 205.
 
@@ -401,10 +510,11 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 
 ---
 
-# 14. Revision History
+# 15. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
 | v0.1 | 2026-05-14 | Initial background introduction for PQC and blockchain |
 | v0.2 | 2026-05-15 | Added NIST PQC parameter tables for ML-DSA, SLH-DSA, and ML-KEM; expanded blockchain relevance discussion around concrete byte sizes |
 | v0.3 | 2026-05-15 | Added Falcon / FN-DSA section, including compact key/signature sizes and explicit note that FIPS 206 remains under development |
+| v0.4 | 2026-05-15 | Added NIST Security Level explanation, ML-DSA category interpretation, and SymVerse CADFork recommendation for ML-DSA-87 |
