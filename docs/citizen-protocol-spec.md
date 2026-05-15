@@ -25,7 +25,7 @@ The protocol covers:
 The Citizen Protocol distinguishes between:
 
 1. **Citizen initialization**, which occurs when a Citizen is confirmed, and  
-2. **Citizen relationship operations**, which occur only through explicit Citizen membership transactions.
+2. **Citizen relationship operations**, which occur only through explicit Citizen transactions.
 
 ---
 
@@ -48,7 +48,7 @@ Citizen confirmation may initialize:
 
 ---
 
-## 2.2 Managed only by explicit Citizen membership transactions
+## 2.2 Managed only by explicit Citizen transactions
 
 The following are **not** created automatically when a Citizen is confirmed:
 
@@ -58,7 +58,7 @@ The following are **not** created automatically when a Citizen is confirmed:
 | Link | No |
 | LinkedBy | No |
 
-They are created or removed only through explicit Citizen membership operations.
+They are created or removed only through explicit Citizen Citizen operations.
 
 ```text
 Citizen confirmation does not automatically initialize:
@@ -77,7 +77,7 @@ Citizen confirmation does not automatically initialize:
 | `RefCode` | Immutable |
 | `Referrer` | Can be deleted and recreated |
 | `Link` | Multiple links may be added and removed individually |
-| `Credit` | Increases when membership operations succeed |
+| `Credit` | Increases when Citizen operations succeed |
 
 ---
 
@@ -119,7 +119,7 @@ Post-registration Nick operations such as `CreateNick` and `DeleteNick` are sepa
 | **Link** | Relationship created from one Citizen to another by target Nick |
 | **LinkedBy** | Reverse view showing which Citizens linked the target |
 | **Credit** | Citizen relationship activity score |
-| **Citizen membership transaction** | Transaction that creates or deletes NickName, Referrer, or Link state |
+| **Citizen transaction** | Transaction that creates or deletes NickName, Referrer, or Link state |
 
 ---
 
@@ -206,7 +206,7 @@ A RefCode:
 - is assigned automatically,
 - uniquely belongs to the Citizen,
 - is not chosen by the user,
-- cannot be changed or deleted by membership transaction.
+- cannot be changed or deleted by Citizen transaction.
 
 ---
 
@@ -563,9 +563,19 @@ Send coins to a long raw address string
 
 ### 5.10.1 `SendTransactionToNick`
 
-`SendTransactionToNick` is used when a wallet, console, or RPC client submits a standard transaction directly to a Nick.
+`SendTransactionToNick` is the Nick-destination form of ordinary `SendTransaction`.
 
-Example A — standard transaction to Nick:
+The key difference is:
+
+```text
+ordinary SendTransaction:
+  to = recipient address
+
+SendTransactionToNick:
+  to = recipient Nick
+```
+
+Example A — standard transaction sent to a Nick:
 
 ```text
 SendTransactionToNick(
@@ -595,17 +605,19 @@ to the Citizen who owns Nick "target01".
 
 ### 5.10.2 `SendRawTransactionToNick`
 
-`SendRawTransactionToNick` is used when the sender prepares and signs a raw transaction externally.
+`SendRawTransactionToNick` is the Nick-destination form of raw transaction submission.
 
-For this API:
+The key difference is:
 
 ```text
-the signed raw transaction must already contain its destination `to` field.
+ordinary raw transaction:
+  signedRawTx.to = recipient address
+
+SendRawTransactionToNick:
+  signedRawTx.to = recipient Nick destination
 ```
 
-The RPC submission itself carries only the signed raw transaction.
-
-Example B — raw transaction to Nick:
+Example B — raw transaction sent to a Nick:
 
 ```text
 signedRawTx contains:
@@ -620,14 +632,14 @@ Expected result:
 
 ```text
 The signed raw transaction is submitted,
-and its destination is processed through the Nick-based transfer path.
+and its `to` destination is resolved through the Nick transfer path.
 ```
 
 The exact raw transaction construction belongs to the transaction/API specification.  
 The Citizen Protocol requirement is:
 
 ```text
-Nick must be usable as a direct transfer destination
+Nick must be usable as the `to` destination
 for both standard and raw transaction submission flows.
 ```
 
@@ -932,7 +944,7 @@ This reverse relation is part of the externally visible Citizen Protocol behavio
 
 ## 9.2 Credit increments
 
-A successful Citizen membership operation increases the sender’s Credit by `+1`.
+A successful Citizen Citizen operation increases the sender’s Credit by `+1`.
 
 | Operation | Credit Change |
 |---|---:|
@@ -947,7 +959,7 @@ RefCode creation does not increase Credit because it is assigned automatically a
 
 ---
 
-# 10. Membership Operation Summary
+# 10. Citizen Operation Summary
 
 | Target | Create | Delete | Change Policy |
 |---|---|---|---|
@@ -963,7 +975,7 @@ RefCode creation does not increase Credit because it is assigned automatically a
 The Citizen Protocol exposes two externally important transaction surfaces:
 
 1. **direct coin transfer by Nick**, and
-2. **Citizen membership operations** for Nick, Referrer, and Link state.
+2. **Citizen operations** for Nick, Referrer, and Link state.
 
 ---
 
@@ -973,8 +985,8 @@ Nick-based coin transfer is exposed through:
 
 | API | Purpose |
 |---|---|
-| `SendTransactionToNick` | Submit a standard coin transfer using a Nick as the destination |
-| `SendRawTransactionToNick` | Submit a signed raw transaction whose destination is handled by the Nick transfer path |
+| `SendTransactionToNick` | `SendTransaction` variant whose `to` field accepts a Nick instead of an address |
+| `SendRawTransactionToNick` | Raw transaction variant whose signed `to` destination is a Nick rather than an address |
 
 Both APIs depend on the same Citizen Protocol principle:
 
@@ -984,7 +996,7 @@ Nick
   → coin transfer recipient
 ```
 
-### Example A — standard transaction to Nick
+### Example A — standard transaction sent to a Nick
 
 ```text
 SendTransactionToNick(
@@ -994,7 +1006,7 @@ SendTransactionToNick(
 )
 ```
 
-### Example B — raw transaction to Nick
+### Example B — raw transaction sent to a Nick
 
 ```text
 signedRawTx contains:
@@ -1009,9 +1021,9 @@ These APIs are externally significant because they allow users to transfer coins
 
 ---
 
-## 11.2 Direct Membership Transaction Type
+## 11.2 Direct Citizen Transaction Type
 
-Citizen runtime operations such as Nick, Referrer, and Link changes may be submitted as direct transactions.
+Citizen runtime operations such as Nick, Referrer, and Link changes may be submitted as direct Citizen transactions.
 
 When constructing such a transaction directly:
 
@@ -1022,10 +1034,10 @@ type = 11
 where:
 
 ```text
-TxTypeMembership = 11
+TxTypeCitizen = 11
 ```
 
-The transaction input payload carries the Citizen membership operation data.
+The transaction input payload carries the Citizen operation data.
 
 Conceptual transaction layout:
 
@@ -1036,21 +1048,21 @@ Conceptual transaction layout:
 | `gasPrice` | Gas price |
 | `gas` | Gas limit |
 | `to` | Recipient field as required by the transaction format |
-| `value` | Transfer value, usually zero for pure membership state operations |
-| `input` | Encoded membership payload |
-| `type` | `11` for `TxTypeMembership` |
+| `value` | Transfer value, usually zero for pure Citizen state operations |
+| `input` | Encoded Citizen operation payload |
+| `type` | `11` for `TxTypeCitizen` |
 
 Because these are on-chain state-changing transactions, they consume Gas Fee.
 
 ---
 
-## 11.3 Membership Payload Fields
+## 11.3 Citizen Payload Fields
 
-A Citizen membership transaction carries a payload with the following externally relevant fields:
+A Citizen transaction carries a Citizen operation payload with the following externally relevant fields:
 
 | Field | Meaning |
 |---|---|
-| `Op` | Membership operation code |
+| `Op` | Citizen operation code |
 | `Domain` | Citizen protocol domain |
 | `Nick` | Nick to create, or Link target Nick, depending on operation |
 | `RefCode` | Input RefCode used to create a Referrer relation |
@@ -1095,7 +1107,7 @@ NickName
 Sponsor
 ```
 
-This mapping is provided to make direct transaction construction unambiguous.
+This mapping is provided to make direct Citizen transaction construction unambiguous.
 
 ---
 
@@ -1244,7 +1256,7 @@ DeleteNick → CreateNick
 
 - Automatically assigned at Citizen confirmation.
 - Immutable.
-- Cannot be created, updated, or deleted by membership transaction.
+- Cannot be created, updated, or deleted by Citizen transaction.
 
 ---
 
@@ -1277,7 +1289,7 @@ DeleteLink
 
 ## 14.5 Credit
 
-- Incremented by successful Citizen membership operations.
+- Incremented by successful Citizen Citizen operations.
 - RefCode assignment does not grant Credit.
 
 ---
@@ -1293,4 +1305,4 @@ DeleteLink
 | v0.5 | 2026-05-15 | Added NickName-based direct coin transfer as a core Citizen Protocol capability, including `SendTransactionToNick`, `SendRawTransactionToNick`, conceptual usage examples, validation scope, and public API significance |
 | v0.6 | 2026-05-15 | Moved NickName policy ahead of RefCode policy and expanded NickName into a user-facing domain-label specification with allowed/prohibited characters, hyphen rules, 6–63 character range, normalization examples, validation regex, and valid/invalid nickname examples |
 | v0.7 | 2026-05-15 | Reduced Nick maximum length to 32 characters, clarified that `NickName` is only the initial Citizen registration term while post-registration operations use `Nick`, renamed lifecycle operations to `CreateNick` and `DeleteNick`, and documented that all post-registration Citizen runtime state changes consume Gas Fee |
-| v0.8 | 2026-05-15 | Corrected Nick transfer API examples, clarified that `SendRawTransactionToNick` receives only a signed raw transaction whose `to` destination is already present, and added direct membership transaction construction guidance for `type = 11`, payload fields, operation-code mapping, and current code-name compatibility references |
+| v0.8 | 2026-05-15 | Renamed the public direct Citizen transaction type to `TxTypeCitizen = 11`, reframed post-registration operations as Citizen transactions, and clarified that `SendTransactionToNick` and `SendRawTransactionToNick` are `to`-destination variants where address input is replaced by Nick input |
