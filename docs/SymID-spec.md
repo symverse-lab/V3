@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.9  
+> **Status:** Draft v0.10  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -92,8 +92,6 @@ The complete public SymID composition rule is defined in:
 Section 4. SymID Composition
 ```
 
-`CaID` is not part of the V3 SymID composition model.
-
 ---
 
 ## 2.3 Algorithm-Aware Account, Algorithm-Neutral SymID Derivation
@@ -131,24 +129,40 @@ The algorithm policy belongs to account authorization metadata.
 
 ## 2.4 Citizen Protocol Compatibility
 
-A SymID identifies an account.  
-The Citizen Protocol defines higher-level public Citizen state such as:
+SymID is the cryptographic account identifier used by the blockchain.
+
+The Citizen Protocol provides a user-facing convenience layer on top of SymID.  
+It allows accounts to be addressed or discovered through easier public identifiers and relationship data such as:
 
 - initial `NickName`,
-- ongoing `Nick`,
+- current `Nick`,
 - `RefCode`,
 - `Referrer`,
 - `Link`,
 - `LinkedBy`.
 
-These are related, but not identical concepts.
+These Citizen Protocol fields improve usability, but they do not replace SymID as the blockchain’s underlying account identifier.
+
+```text
+User-facing Citizen Protocol identifiers
+  → resolved to SymID-backed account identity
+  → processed by the blockchain as SymID-based state
+```
 
 | Concept | Role |
 |---|---|
-| SymID | Cryptographic account identifier |
-| Citizen | Protocol-recognized account/citizen registration state |
-| Nick | Human-readable public Citizen key |
-| RefCode / Referrer / Link | Citizen runtime relation state |
+| `SymID` | Cryptographic account identifier used by the blockchain |
+| Citizen registration state | Protocol-recognized account/Citizen state attached to a SymID |
+| `NickName` / `Nick` | Human-readable Citizen alias for user convenience |
+| `RefCode` / `Referrer` / `Link` / `LinkedBy` | Citizen runtime relationship data built around the SymID-backed account |
+
+In practical terms:
+
+- a user may send coins to a `Nick`,
+- a user may create a `Link` using another Citizen’s `Nick`,
+- a user may register a `Referrer` using a `RefCode`,
+
+but after resolution, the blockchain state transition is performed against the corresponding **SymID-backed account**.
 
 ---
 
@@ -319,21 +333,7 @@ SymID derivation MUST reject invalid input.
 
 ---
 
-## 4.6 ChainID Replaces CA-Oriented Prefixing
-
-The V3 SymID composition uses:
-
-```text
-ChainID
-```
-
-not `CaID`.
-
-Legacy CA-style prefixing is outside the V3 SymID composition model.
-
----
-
-## 4.7 Not Address-plus-Nonce Derivation
+## 4.6 Not Address-plus-Nonce Derivation
 
 The V3 SymID derivation rule MUST NOT be confused with:
 
@@ -347,7 +347,7 @@ SymID is derived from the public-key hash component together with Version and Ch
 
 ---
 
-## 4.8 Same Composition for ECDSA and PQC
+## 4.7 Same Composition for ECDSA and PQC
 
 The same SymID composition policy applies to:
 
@@ -575,24 +575,33 @@ This may include:
 
 ---
 
-## 8.3 Initial NickName Is Separate from SymID
+## 8.3 Citizen Convenience Identifiers Resolve to SymID
 
-A SymID is cryptographic and chain-bound.  
-An initial `NickName` is human-readable Citizen metadata.
+Citizen Protocol identifiers are designed for user convenience.
 
-| Item | Nature |
-|---|---|
-| SymID | Key-derived chain-bound account identifier |
-| NickName | Optional initial Citizen public alias |
-| Nick | Post-registration public Citizen alias |
+| Identifier | User-Facing Purpose | Blockchain-Level Result |
+|---|---|---|
+| Initial `NickName` | Optional alias assigned during Citizen registration | Associated with the Citizen’s SymID-backed account |
+| Current `Nick` | Human-readable public alias | Resolves to the SymID-backed account |
+| `RefCode` | Easy referral input | Resolves to a Citizen relationship involving SymID-backed accounts |
+| `Link` / `LinkedBy` | Human-friendly relation surface | Stored and interpreted as Citizen runtime state attached to SymID-backed accounts |
 
-A Nick can be used for:
+This means:
 
-- public lookup,
-- Citizen relation operations,
-- direct transfer APIs.
+```text
+Nick-based convenience
+  does not replace
+SymID-based blockchain identity.
+```
 
-But the Nick does not replace the SymID as the underlying account identifier.
+For example:
+
+```text
+SendTransactionToNick(to = "target01")
+```
+
+is user-facing Nick convenience.  
+The transaction ultimately targets the account resolved from that Nick and is processed in the blockchain’s SymID account model.
 
 ---
 
@@ -636,9 +645,10 @@ After CADFork:
 SymID is:
 
 - cryptographic,
-- deterministic under ChainID and key context,
-- used in account and transaction validation,
-- not user-selected.
+- deterministic under Version, ChainID, and public-key-hash composition,
+- used in blockchain account and transaction processing,
+- not user-selected,
+- the underlying unique account key.
 
 ---
 
@@ -647,9 +657,12 @@ SymID is:
 Nick is:
 
 - human-readable,
-- globally unique within the Citizen protocol domain,
+- globally unique within the Citizen Protocol domain,
 - user-facing,
-- usable for lookup and direct transfer APIs.
+- usable for lookup, direct transfer convenience, and Citizen relation operations.
+
+Nick is not the blockchain’s underlying account key.  
+It is a convenience identifier that resolves to a SymID-backed account.
 
 ---
 
@@ -658,11 +671,11 @@ Nick is:
 | Property | SymID | Nick |
 |---|---|---|
 | Derived from key material | Yes | No |
-| Chain-bound | Yes | Indirectly, through protocol state |
+| Chain-bound | Yes | Indirectly, through Citizen Protocol state |
 | User-chosen | No | Yes, subject to validation |
-| Used for transaction sender verification | Yes | No |
-| Used as direct transfer destination | Underlying resolved account | User-facing destination identifier |
-| May be changed | No | Yes, through Citizen operation rules |
+| Used for blockchain account processing | Yes | No, it resolves to SymID-backed state |
+| Used for transfer input | Yes | Yes, as a convenience input that resolves to the target account |
+| May be changed | No | Yes, through Citizen Protocol rules |
 
 ---
 
@@ -709,3 +722,4 @@ The exact RPC field names are defined in the related API specifications.
 | v0.7 | 2026-05-15 | Reduced repeated SymID layout descriptions by keeping the canonical component table and hash rule in Section 4, with later sections referring back to that single definition for a more concise specification flow |
 | v0.8 | 2026-05-15 | Added the SymID version policy (`0 = Legacy`, `1 = PQCFork-era SymID`), clarified post-PQCFork Version `1` usage, and added representative Legacy SymID/system-address examples from the earlier SymID documentation |
 | v0.9 | 2026-05-15 | Replaced the algorithm-code example table with a clearer rule: ECDSA and ML-DSA both provide public keys, and both follow the same SymID composition path using the last 8 bytes of `SHA3-256(public key)` |
+| v0.10 | 2026-05-15 | Removed non-V3 legacy prefix commentary and clarified that Citizen Protocol identifiers such as Nick, RefCode, Referrer, and Link are user-facing convenience layers that resolve to and operate over underlying SymID-backed blockchain accounts |
