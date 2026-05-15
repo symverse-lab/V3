@@ -1,595 +1,525 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.1  
+> **Status:** Draft v0.2  
 > **Date:** 2026-05-15  
-> **Document Role:** Public specification for SymID identity structure, Citizen identity binding, account information, issuer model, and V3 post-quantum extension direction  
-> **Source Basis:** Existing SymVerse `SymID` documentation, revised for the SymVerse V3 documentation set
+> **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
 ---
 
 # 1. Overview
 
-**SymID** is the identity foundation of the SymVerse blockchain.
+**SymID** is the account identifier used by the SymVerse blockchain.
 
-A SymID provides:
+In SymVerse V3, SymID is defined as a **chain-bound cryptographic account identifier**.
 
-- a blockchain-native identity identifier,
-- an account identifier usable in transactions,
-- a link between Citizen identity and account issuance,
-- issuer-driven identity assurance,
-- a structured basis for public, trusted, and anonymous participation,
-- a protocol foundation that can evolve toward post-quantum authorization in SymVerse V3.
+A SymID is associated with:
 
-SymID is not merely a wallet address.  
-It is a compact identity-oriented blockchain account scheme that combines:
+- one private key,
+- one public key,
+- one chain context,
+- and one blockchain account identity.
 
-1. Citizen identity context,
-2. issuer context,
-3. account sequencing,
-4. account verification metadata,
-5. transaction usability.
+The V3 identity relationship is:
+
+```text
+1 private key : 1 public key : 1 SymID
+```
+
+SymID is therefore not a multi-account identity container.  
+It is the **direct account identifier derived from a cryptographic key pair within a specific chain context**.
 
 ---
 
-# 2. Core Concept
+# 2. V3 Design Principles
 
-## 2.1 User, Citizen ID, and SymID
+## 2.1 Key-Bound Identity
 
-SymVerse distinguishes:
+A SymID is bound to a single cryptographic key pair.
 
-| Concept | Meaning |
+| Object | Relationship |
 |---|---|
-| **User** | The real or logical participant |
-| **Citizen ID** | Identity root assigned to the participant |
-| **SymID** | Account-level identifier issued under a Citizen ID |
+| Private key | Controls the account |
+| Public key | Provides verifiable authorization material |
+| SymID | Identifies the account on-chain |
 
-The basic relationship is:
+The core rule is:
 
 ```text
-User : Citizen ID : SymID = 1 : 1 : N
+One key pair produces one SymID.
+```
+
+This applies to:
+
+- ECDSA accounts,
+- post-quantum accounts,
+- future signature schemes supported by the protocol.
+
+---
+
+## 2.2 Chain-Bound Identity
+
+SymID is not derived from public-key material alone.  
+It is also bound to the target chain through:
+
+```text
+ChainID
+```
+
+The purpose is to prevent ambiguity across chains and to ensure that a SymID is interpreted in the proper SymVerse network context.
+
+Conceptually:
+
+```text
+SymID = Derive(
+  ChainID,
+  PublicKey,
+  Algorithm Context
+)
+```
+
+The public specification uses the term:
+
+```text
+ChainID
+```
+
+for this chain-binding component.
+
+---
+
+## 2.3 Algorithm-Aware Identity
+
+SymVerse V3 is designed for quantum-resistant blockchain operation.
+
+A SymID may be associated with:
+
+- legacy ECDSA authorization,
+- ML-DSA authorization,
+- future standardized PQC authorization schemes.
+
+The signature algorithm itself is not expressed only by the visible SymID string.  
+Instead, the broader V3 account model combines:
+
+| Layer | Role |
+|---|---|
+| SymID | Account identifier |
+| Account authorization metadata | Signature algorithm and public-key material |
+| Transaction authorization | Signature validation |
+| CAD | Consensus authorization commitment after CADFork |
+
+---
+
+## 2.4 Citizen Protocol Compatibility
+
+A SymID identifies an account.  
+The Citizen Protocol defines higher-level public Citizen state such as:
+
+- initial `NickName`,
+- ongoing `Nick`,
+- `RefCode`,
+- `Referrer`,
+- `Link`,
+- `LinkedBy`.
+
+These are related, but not identical concepts.
+
+| Concept | Role |
+|---|---|
+| SymID | Cryptographic account identifier |
+| Citizen | Protocol-recognized account/citizen registration state |
+| Nick | Human-readable public Citizen key |
+| RefCode / Referrer / Link | Citizen runtime relation state |
+
+---
+
+# 3. SymID Identity Model
+
+## 3.1 V3 Identity Relationship
+
+The V3 model is:
+
+```text
+PrivateKey → PublicKey → SymID
+```
+
+with chain binding:
+
+```text
+(ChainID, PublicKey) → SymID
 ```
 
 This means:
 
-- one user owns one Citizen ID,
-- one Citizen ID may issue multiple SymIDs,
-- each SymID can serve as a distinct account identity in the blockchain.
+1. a new key pair creates a new SymID,
+2. changing the key pair creates a different SymID,
+3. SymID is not a sequence under a shared Citizen ID,
+4. SymID is not a CA-issued serial-account number.
 
 ---
 
-## 2.2 SymID as an Account Identifier
+## 3.2 One SymID Per Key Pair
 
-A SymID contains account-level identity information and can be used as:
+A SymID is uniquely tied to its cryptographic account key pair.
 
-- a blockchain account identifier,
-- a transaction sender or receiver identifier,
-- a service verification identifier,
-- an identity reference in issuer and Citizen workflows.
-
-For ordinary users, SymID functions as the practical identity/account number used in blockchain activity.
-
----
-
-# 3. SymID Characteristics
-
-SymID is designed around the following principles.
-
-| Characteristic | Meaning |
+| Case | Result |
 |---|---|
-| **Existence** | Proves that a protocol-recognized identity exists |
-| **Decentralization** | Reduces reliance on a single centralized identity authority |
-| **Self-Sovereignty** | Supports user control over identity-linked account usage |
-| **Privacy** | Allows different identity-verification strengths without indiscriminate data disclosure |
-| **Security** | Relies on cryptographic proof and issuer verification |
-| **Interoperability** | Enables ID-based services to integrate with the SymVerse blockchain |
-| **Portability** | Allows SymID to be used across systems that support the SymVerse identity model |
-| **Extensibility** | Supports future service and network expansion |
-| **Protection** | Helps define rights and responsibility among participants |
-| **Persistence** | Provides a durable identity/account framework |
-| **Trusted Network** | Supports issuer- and PKI-oriented trust relationships |
-| **KYC / AML Flexibility** | Supports trusted or regulated participation models when needed |
-| **Anonymity** | Supports anonymity-preserving issuance paths where appropriate |
-| **Credential Support** | Provides a basis for certificate and eligibility models |
-| **Stamp / Eligibility Model** | Allows verification of qualification without exposing unnecessary personal data |
+| Same key pair, same ChainID | Same SymID derivation result |
+| Different key pair | Different SymID |
+| Same public key under a different ChainID | Different chain-bound identity context |
+
+The protocol therefore treats SymID as a deterministic account identifier under a chain.
 
 ---
 
-# 4. SymID Format
+## 3.3 SymID and Account Creation
 
-## 4.1 High-Level Format
+The typical V3 account creation flow is:
 
-A SymID consists of:
+```text
+1. Select account algorithm.
+2. Generate private key and public key.
+3. Select the target ChainID.
+4. Derive SymID from the public-key context and ChainID.
+5. Register the account/Citizen state as required by the protocol.
+```
 
-1. **Version**
-2. **Citizen ID**
-3. **Account sequence number**
-
-The total SymID structure preserves the compact identity model described in the original SymVerse documentation.
+For PQC-capable accounts, the account creation flow includes post-quantum public-key material and algorithm metadata.
 
 ---
 
-## 4.2 SymID Field Layout
+# 4. SymID Semantic Format
 
-| Field | Sub-field | Size | Description |
-|---|---|---:|---|
-| Version | — | 2 bits | SymID version number |
-| Citizen ID | CA ID | 14 bits | Issuer identification code |
-| Citizen ID | Random | 6 bytes | User identification component assigned by issuer |
-| SeqNum | — | 2 bytes | Account sequence number under the Citizen ID |
+## 4.1 Public Semantic Composition
+
+A V3 SymID is described semantically by the following components:
+
+| Component | Meaning |
+|---|---|
+| Version | SymID format/version discriminator |
+| ChainID | Chain-binding component |
+| Key-derived account component | Identifier derived from public-key context |
+| Algorithm context | Account authorization family used when deriving or interpreting the SymID |
 
 Conceptually:
 
 ```text
 SymID =
   Version
-  + CA ID
-  + Random
-  + SeqNum
+  + ChainID
+  + Key-derived account component
 ```
+
+The public specification focuses on these semantics.  
+The exact binary layout and internal derivation encoding are implementation-defined by the SymVerse V3 protocol code and should remain consistent across all account creation and verification paths.
 
 ---
 
-## 4.3 Citizen ID
+## 4.2 ChainID Replaces Issuer-Oriented Prefixing
 
-The Citizen ID represents the identity root associated with the user.
+V3 SymID is not organized around issuer-class ranges.
 
-| Component | Size | Meaning |
+The V3 account identifier should be interpreted through:
+
+```text
+ChainID
+```
+
+rather than a CA/issuer hierarchy.
+
+This design aligns SymID with the quantum-resistant blockchain architecture:
+
+- accounts are derived from cryptographic keys,
+- chain identity is explicit,
+- Citizen registration is handled by the Citizen Protocol,
+- authorization capability is handled by account metadata and transaction validation.
+
+---
+
+## 4.3 Visible SymID
+
+A SymID is represented as a blockchain address string.
+
+Representative V3-style examples may appear as:
+
+```text
+0x40058C54...
+0x400A8C54...
+0xC1223344...
+```
+
+The exact value depends on:
+
+- chain context,
+- key material,
+- account derivation rules.
+
+These examples illustrate that SymID is a chain/account identifier, not a user-chosen alias.
+
+---
+
+# 5. Authorization Metadata Associated with SymID
+
+## 5.1 Account Authorization Model
+
+A SymID-linked account carries authorization metadata used for transaction validation.
+
+In V3, relevant authorization concepts include:
+
+| Field / Concept | Meaning |
+|---|---|
+| Public-key hash or account public-key reference | Legacy account verification context |
+| `QAlgo` | PQC algorithm identifier |
+| `QKeyPub` | PQC public key |
+| Account status / role fields | Protocol-defined account metadata |
+
+---
+
+## 5.2 ECDSA Account
+
+An ECDSA-backed SymID uses classical signature authorization.
+
+Conceptually:
+
+```text
+ECDSA private key
+  → ECDSA public key
+  → SymID
+```
+
+ECDSA remains part of compatibility and transition handling where the protocol permits it.
+
+---
+
+## 5.3 PQC Account
+
+A PQC-backed SymID uses post-quantum public-key material.
+
+Conceptually:
+
+```text
+PQC private key
+  → PQC public key
+  → ChainID-bound SymID
+```
+
+For ML-DSA accounts, the account metadata includes:
+
+- `QAlgo`
+- `QKeyPub`
+
+The SymID account identifier and the PQC authorization metadata together form the V3 post-quantum account model.
+
+---
+
+## 5.4 Algorithm Examples
+
+| Account Family | Example Algorithm Code | Authorization Material |
 |---|---:|---|
-| CA ID | 14 bits | Issuer classification / issuer identity |
-| Random | 6 bytes | User identification component assigned by the issuer |
+| ECDSA | `0x0000` | ECDSA public-key context |
+| ML-DSA-44 | `0x0044` | ML-DSA-44 public key |
+| ML-DSA-65 | `0x0065` | ML-DSA-65 public key |
+| ML-DSA-87 | `0x0087` | ML-DSA-87 public key |
 
-The Citizen ID is:
+SymVerse plans to recommend **ML-DSA-87** after CADFork because it provides the highest NIST security level among the standardized ML-DSA parameter sets.
+
+---
+
+# 6. SymID Derivation and Verification
+
+## 6.1 Derivation Consistency
+
+All SymID generation paths must derive the same SymID from the same:
+
+- ChainID,
+- public key,
+- algorithm context.
+
+The protocol must not silently substitute chain context.  
+A missing or mismatched ChainID must be treated as an error in derivation-sensitive paths.
+
+---
+
+## 6.2 Public-Key Binding
+
+The SymID must remain consistent with the public-key material used for authorization.
+
+Conceptually:
 
 ```text
-CA ID + Random
+Verify(
+  ChainID,
+  PublicKey,
+  SymID
+) = true
+```
+
+This prevents a transaction or account record from claiming an unrelated SymID.
+
+---
+
+## 6.3 Sender Verification
+
+For a transaction sender, the protocol validates that:
+
+1. the transaction sender field contains a SymID,
+2. the authorization public key corresponds to that SymID,
+3. the signature satisfies the account’s algorithm rules.
+
+For PQC accounts, this includes validation against:
+
+- `QAlgo`,
+- `QKeyPub`,
+- the transaction’s post-quantum signature evidence where applicable.
+
+---
+
+# 7. SymID and Citizen Registration
+
+## 7.1 SymID Before Citizen Registration
+
+A key pair may be generated before Citizen registration is completed.
+
+The generated SymID identifies the account candidate, but protocol-visible Citizen state becomes active only after the required Citizen registration flow is confirmed.
+
+---
+
+## 7.2 Citizen Registration Binding
+
+Citizen registration binds protocol state to the SymID.
+
+This may include:
+
+- SymID/account activation,
+- authorization metadata,
+- optional initial `NickName`,
+- future account/Citizen queryability.
+
+---
+
+## 7.3 Initial NickName Is Separate from SymID
+
+A SymID is cryptographic and chain-bound.  
+An initial `NickName` is human-readable Citizen metadata.
+
+| Item | Nature |
+|---|---|
+| SymID | Key-derived chain-bound account identifier |
+| NickName | Optional initial Citizen public alias |
+| Nick | Post-registration public Citizen alias |
+
+A Nick can be used for:
+
+- public lookup,
+- Citizen relation operations,
+- direct transfer APIs.
+
+But the Nick does not replace the SymID as the underlying account identifier.
+
+---
+
+# 8. SymID and CADFork
+
+## 8.1 Why SymID Matters for Quantum-Resistant Accounts
+
+SymID provides the account identity layer.  
+PQC signatures provide the authorization layer.  
+CAD provides the consensus commitment layer.
+
+The V3 stack is therefore:
+
+```text
+SymID
+  = account identity
+
+PQC authorization
+  = quantum-resistant signing model
+
+CAD
+  = signature-size-independent consensus authorization commitment
 ```
 
 ---
 
-## 4.4 CA ID Range
+## 8.2 CADFork Direction
 
-The CA ID indicates the issuer category.
+After CADFork:
 
-| CA ID Range | Meaning |
+- SymVerse can support PQC accounts without binding consensus commitment size directly to raw PQC signature size,
+- SymID remains the account identity anchor,
+- stronger PQC algorithms such as ML-DSA-87 can be recommended as the default direction.
+
+---
+
+# 9. SymID Compared with Nick
+
+## 9.1 SymID
+
+SymID is:
+
+- cryptographic,
+- deterministic under ChainID and key context,
+- used in account and transaction validation,
+- not user-selected.
+
+---
+
+## 9.2 Nick
+
+Nick is:
+
+- human-readable,
+- globally unique within the Citizen protocol domain,
+- user-facing,
+- usable for lookup and direct transfer APIs.
+
+---
+
+## 9.3 Comparison Table
+
+| Property | SymID | Nick |
+|---|---|---|
+| Derived from key material | Yes | No |
+| Chain-bound | Yes | Indirectly, through protocol state |
+| User-chosen | No | Yes, subject to validation |
+| Used for transaction sender verification | Yes | No |
+| Used as direct transfer destination | Underlying resolved account | User-facing destination identifier |
+| May be changed | No | Yes, through Citizen operation rules |
+
+---
+
+# 10. Public Query Expectations
+
+A public account or Citizen query surface may expose:
+
+| Query Concern | Example Output |
 |---|---|
-| `0x0001` | Master CA |
-| `0x0002 ~ 0x0400` | Trusted CA |
-| `0x0401 ~ 0x0800` | Public CA |
-| `0x0801 ~ 0x1400` | Anonymous CA |
-| `0x1401 ~ 0xFFFF` | Reserved |
+| SymID | Account identifier |
+| Account algorithm | ECDSA / ML-DSA variant |
+| PQC algorithm code | `QAlgo` |
+| PQC public key | `QKeyPub`, where permitted |
+| Citizen Nick | Current Nick, if present |
+| Citizen RefCode | Public Citizen referral code, if exposed by Citizen Protocol |
+
+The exact RPC field names are defined in the related API specifications.
 
 ---
 
-## 4.5 Random Component
-
-The Random component is assigned by the issuer and identifies the Citizen under that issuer context.
-
-| Random Value | Meaning |
-|---|---|
-| `0x00...01` | Issuer / CA identity |
-| `0x00...02` and above | General user identity |
-
----
-
-## 4.6 SeqNum
-
-`SeqNum` is the account sequence number under the Citizen ID.
-
-| SeqNum | Meaning |
-|---:|---|
-| `1` | Reserved |
-| `2 ~ 9999` | Account sequence range |
-| `10000` and above | Reserved |
-
-A single Citizen ID may therefore manage multiple SymID accounts through sequence numbering.
-
----
-
-# 5. SymID Examples
-
-## 5.1 Representative SymID Forms
-
-| Owner / Holder | SymID Example |
-|---|---|
-| Master CA first account | `0x0001 000000000001 0002` |
-| Master CA second account | `0x0001 000000000001 0003` |
-| Oracle account | `0x0001 000000000002 0002` |
-| Reward account | `0x0001 000000000003 0002` |
-| First CA first account | `0x0002 000000000001 0002` |
-| First CA second account | `0x0002 000000000001 0003` |
-| First CA first user first account | `0x0002 XXXXXXXXXXXX 0002` |
-| First CA first user second account | `0x0002 XXXXXXXXXXXX 0003` |
-| First CA second user first account | `0x0002 YYYYYYYYYYYY 0002` |
-
----
-
-# 6. SymID Account Information
-
-## 6.1 Account Information Model
-
-A SymID is issued together with account information that describes authorization and status metadata.
-
-The legacy SymID documentation describes the following core account information model:
-
-| Field | Description |
-|---|---|
-| Public-key hash | Hash-derived public-key identifier |
-| Role | Account role and purpose |
-| Verification flag | Identity-verification strength |
-| State | Current account state |
-| Credit | External blockchain credit index |
-| Country | Country code |
-| Reference code | Issuer-defined additional information |
-| Issued time | Account issuance timestamp |
-
----
-
-## 6.2 Public-Key Hash
-
-The public-key hash is used for account authorization workflows and transaction verification.
-
-Legacy SymID documentation describes this as:
-
-```text
-Lower 20 bytes of the user’s public-key hash value
-```
-
-In SymVerse V3, the account authorization model is extended to support post-quantum account metadata while preserving the account-identity role of SymID.
-
----
-
-## 6.3 Role
-
-The Role field indicates the role and purpose of the SymID.
-
-Representative role examples include:
-
-| Role Value | Meaning |
-|---|---|
-| `0x0001` | General account |
-| `0xF0F0` | Master CA |
-| `0xF0F1` | CA |
-| Others | Reserved or protocol-defined roles |
-
----
-
-## 6.4 Verification Flag
-
-The verification flag records the strength or method of identity verification.
-
-| Bit | Meaning |
-|---|---|
-| `lsb + 0` | E-mail verified |
-| `lsb + 1` | Phone number verified |
-| `lsb + 2` | National ID card verified |
-| `lsb + 3` | Face-to-face verification |
-| `lsb + 4` | Deposit |
-| `lsb + 5 ~ msb` | Reserved |
-
----
-
-## 6.5 State
-
-The State field provides the current status of the SymID.
-
-| State Value | Meaning |
-|---:|---|
-| `0x01` | Active |
-| `0x02` | Revoked |
-| `0x03` | Locked |
-| `0x04` | Holding |
-| `0x05` | Marked |
-
----
-
-## 6.6 Credit
-
-Credit refers to an external or protocol-associated trust/credit index attached to SymID use cases.
-
-In the V3 documentation set, this field should be kept conceptually distinct from the **Citizen Protocol Credit** accumulated through Citizen runtime operations.
-
-| Credit Concept | Location in V3 Docs |
-|---|---|
-| SymID account credit | SymID account metadata |
-| Citizen runtime credit | Citizen Protocol activity score |
-
----
-
-## 6.7 Reference Code
-
-The reference code provides issuer-defined additional information at SymID issuance time.
-
-This legacy reference code is separate from the **Citizen Protocol RefCode** described in the Citizen Protocol Specification.
-
-| Term | Meaning |
-|---|---|
-| SymID reference code | Issuer-defined account metadata |
-| Citizen Protocol RefCode | Citizen referral code used for Referrer operations |
-
----
-
-## 6.8 Issued Time
-
-The issued-time field records the creation time of the SymID account.
-
-The legacy description uses a date/time representation in the order:
-
-```text
-YYYY MM DD HH MM SS
-```
-
----
-
-# 7. SymVerse V3 Extension — PQC-Aware SymID Account
-
-## 7.1 Motivation
-
-SymVerse V3 extends the account model to support post-quantum authorization.
-
-A V3 SymID-linked account may include additional quantum-safe authorization metadata such as:
-
-| Field | Meaning |
-|---|---|
-| `QAlgo` | Post-quantum signature algorithm identifier |
-| `QKeyPub` | Post-quantum public key material |
-
-These fields allow SymID-linked accounts to participate in the V3 post-quantum transaction model.
-
----
-
-## 7.2 Relationship to PQC Account Specification
-
-The detailed structure and policy of PQC account metadata are defined in:
-
-```text
-pqc-account-spec.md
-```
-
-The SymID specification only establishes the architectural relationship:
-
-```text
-SymID account identity
-  + PQC authorization metadata
-  = V3-compatible post-quantum account model
-```
-
----
-
-## 7.3 SymID and CADFork
-
-After CADFork, SymVerse V3 can support stronger post-quantum authorization while preserving the identity role of SymID.
-
-The V3 documentation direction is:
-
-- SymID remains the account/identity framework,
-- PQC metadata defines cryptographic authorization capability,
-- CAD defines how authorization results are committed without binding consensus cost directly to raw PQC signature size.
-
----
-
-# 8. Relationship to Citizen Protocol
-
-## 8.1 SymID and Citizen
-
-SymID and Citizen are closely related but serve different protocol roles.
-
-| Concept | Role |
-|---|---|
-| **Citizen** | Protocol-level identity participant |
-| **Citizen ID** | Identity root linked to issuer context |
-| **SymID** | Account identifier issued under the Citizen identity root |
-| **Nick** | Human-readable Citizen alias defined by Citizen Protocol |
-
----
-
-## 8.2 SymID vs Nick
-
-SymID is a compact account identifier.  
-Nick is a human-readable Citizen alias.
-
-| Identifier | Primary Use |
-|---|---|
-| SymID | Account identity and transaction participation |
-| Nick | Public Citizen lookup, Link target, and Nick-based transfer destination |
-
-A Citizen may therefore be exposed through:
-
-- SymID-based account representation,
-- Nick-based human-readable representation.
-
----
-
-## 8.3 Citizen Protocol Separation
-
-The following are defined outside the SymID structure and belong to the Citizen Protocol Specification:
-
-- Initial `NickName`
-- Current `Nick`
-- Citizen `RefCode`
-- Referrer relation
-- Link / LinkedBy relation
-- Citizen runtime Credit
-- Nick-based direct transfer APIs
-
-This separation keeps:
-
-- SymID identity/account structure clear,
-- Citizen social/runtime identity behavior separate,
-- transaction and API documentation modular.
-
----
-
-# 9. Issuer Model
-
-## 9.1 Issuer Roles
-
-The SymID model supports several issuer classes.
-
-| Issuer Type | Description |
-|---|---|
-| Master CA | Root issuer / issuer governance authority |
-| Trusted CA | Stronger identity-verification issuer |
-| Public CA | Lower-identification or limited-disclosure issuer |
-| Anonymous CA | Issuer supporting anonymity-preserving participation |
-
----
-
-## 9.2 Trusted, Public, and Anonymous Participation
-
-| Issuer Type | Intended Service Context |
-|---|---|
-| Trusted CA | Services requiring stronger assurance, e.g. age, tax, country-specific access |
-| Public CA | Services requiring limited identification |
-| Anonymous CA | Services prioritizing anonymous participation |
-
-SymID allows different service environments to choose appropriate identity assurance levels.
-
----
-
-# 10. System Configuration
-
-## 10.1 Major Participants
-
-The SymID ecosystem includes:
-
-| Participant | Role |
-|---|---|
-| User | Requests and uses SymID |
-| Issuer | Issues SymID under its authorization scope |
-| SymID ledger | Records and verifies SymID-related blockchain state |
-| Privacy repository | Stores personal data outside the blockchain where needed |
-
----
-
-## 10.2 SymID Ledger and Main-Block Distinction
-
-The original SymID model distinguishes:
-
-| Data Area | Purpose |
-|---|---|
-| SymID ledger / Citizen-Block | Records and verifies SymID-related identity information |
-| Main-Block | Stores transaction details |
-
-This distinction remains important in understanding how identity data and transaction data coexist in the SymVerse architecture.
-
----
-
-## 10.3 Privacy Repository
-
-Personal information used for issuance may be stored outside the blockchain in a separate privacy repository.
-
-The blockchain records the protocol identity state, while sensitive off-chain identity material can remain outside the distributed ledger.
-
----
-
-# 11. Services Using SymID
-
-## 11.1 Trusted Service
-
-A trusted service can require SymID issued under stronger verification by a trusted issuer.
-
-This may be used for services involving:
-
-- country-specific access,
-- age restrictions,
-- tax-sensitive operations,
-- stronger accountability requirements.
-
----
-
-## 11.2 Public Service
-
-A public service can operate with lower-identification or minimal-information SymID issuance.
-
-This supports use cases where:
-
-- full identity disclosure is unnecessary,
-- limited service verification is sufficient.
-
----
-
-## 11.3 Anonymous Service
-
-An anonymous service can use SymID issued by an anonymous issuer.
-
-This supports:
-
-- privacy-preserving participation,
-- economic activity without unnecessary personal-data exposure,
-- anonymous service access where appropriate.
-
----
-
-# 12. SymID Issuance Flow
-
-## 12.1 Issuance Procedure
-
-A high-level issuance flow is:
-
-```text
-1. User generates cryptographic key material.
-2. User authenticates with the issuer.
-3. User provides required issuance data and public authorization material.
-4. Issuer creates and records the SymID account.
-5. User verifies that the SymID was recorded correctly.
-```
-
----
-
-## 12.2 V3 Issuance Extension
-
-For a V3 PQC-aware account, the issuance flow may also include:
-
-- post-quantum algorithm selection,
-- post-quantum public-key material,
-- account metadata needed for PQC transaction authorization.
-
-The exact V3 PQC account fields are defined in the PQC Account Specification.
-
----
-
-# 13. SymID Verification Flow
-
-## 13.1 Verification Procedure
-
-A high-level verification flow is:
-
-```text
-1. User and service provider perform mutual identity-aware interaction.
-2. Service provider reviews the SymID verification context.
-3. Service provider decides whether service access is permitted.
-```
-
----
-
-## 13.2 Public Information and Selective Verification
-
-The SymID model is intended to support identity-aware service decisions while avoiding unnecessary disclosure of personal information.
-
-Service providers may evaluate:
-
-- issuer class,
-- verification flag,
-- account state,
-- service-specific requirements.
-
----
-
-# 14. Relationship to Other V3 Documents
+# 11. Relationship to Other V3 Documents
 
 | Document | Relationship |
 |---|---|
-| `pqc-and-blockchain-introduction.md` | Background on PQC and blockchain risk |
-| `pqc-account-spec.md` | Detailed PQC account metadata |
-| `transaction-spec.md` | Transaction fields and submission models |
+| `pqc-and-blockchain-introduction.md` | Why PQC migration is needed |
+| `pqc-account-spec.md` | PQC account fields and authorization metadata |
+| `transaction-spec.md` | Transaction fields and authorization submission |
 | `citizen-protocol-spec.md` | Nick, RefCode, Referrer, Link, Citizen runtime rules |
 | `cad-overview.md` | Visual explanation of CAD |
 | `cad-spec.md` | Formal CAD commitment model |
 
 ---
 
-# 15. Revision History
+# 12. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
-| v0.1 | 2026-05-15 | Initial SymVerse V3 SymID specification drafted from the existing SymID documentation and extended with V3 PQC-account, Citizen Protocol, and CADFork positioning |
+| v0.1 | 2026-05-15 | Initial draft based too closely on the legacy SymID identity hierarchy |
+| v0.2 | 2026-05-15 | Rewritten for the quantum-resistant V3 architecture: one key pair maps to one SymID, ChainID replaces CA ID as the public chain-binding concept, issuer-hierarchy assumptions are removed, and PQC account/CAD/Citizen Protocol relationships are defined |
