@@ -2,7 +2,6 @@
 
 > **Status:** Draft v0.1  
 > **Date:** 2026-05-15  
-> **Former Document:** `citizen-protocol-spec.md`  
 > **Document Role:** Protocol-level specification for Citizen identity, CitizenBlock confirmation, initial citizen runtime state, and citizen relationship operations in SymVerse V3
 
 ---
@@ -11,16 +10,7 @@
 
 This document defines the **SymVerse V3 Citizen Protocol**.
 
-The previous `Membership Specification` described:
-
-- Nickname
-- RefCode
-- Referrer
-- Link
-- LinkedBy
-
-Those topics remain important, but they are not merely “membership features.”  
-They are part of a broader **Citizen protocol** that defines how a SymVerse identity is:
+The Citizen Protocol defines how a SymVerse identity is:
 
 1. created,
 2. confirmed through CitizenBlock processing,
@@ -50,23 +40,6 @@ A Citizen is a protocol-level identity object that connects:
 - and transaction-governed relationship state.
 
 ---
-
-## 2.2 Citizen Protocol vs Membership Runtime
-
-The previous “membership” view focused on relationship features.  
-The Citizen Protocol expands the scope:
-
-| Area | Membership View | Citizen Protocol View |
-|---|---|---|
-| Primary object | Membership record | Citizen identity |
-| Creation event | Not central | Citizen creation + CitizenBlock confirmation |
-| Nickname | Membership label | Citizen-owned public identifier |
-| RefCode | Membership code | Deterministic Citizen owner code |
-| Referrer | Membership relation | Explicit citizen relationship state |
-| Link / LinkedBy | Membership graph | Citizen relationship graph |
-| PQC metadata | Out of scope | Citizen authorization metadata |
-| API | Membership query | Citizen-centric public protocol API |
-| Sync / restart | Secondary | Required protocol consistency property |
 
 ---
 
@@ -193,7 +166,7 @@ flowchart TD
     C --> D["4. CitizenBlock confirms Citizen"]
     D --> E["5. Deterministic initial Citizen runtime state applied"]
     E --> F["6. Citizen can be queried through public APIs"]
-    F --> G["7. Relationship state evolves through explicit Citizen/Membership transactions"]
+    F --> G["7. Relationship state evolves through explicit Citizen relationship transactions"]
 ```
 
 ---
@@ -296,7 +269,7 @@ Citizen creation must not automatically initialize:
 - LinkedBy
 ```
 
-Referrer and Link state are handled by explicit Citizen/Membership transaction operations.
+Referrer and Link state are handled by explicit Citizen relationship transaction operations.
 
 ---
 
@@ -461,7 +434,7 @@ Even if an `InputRefCode` exists in a request flow or is resolved by surrounding
 
 ## 11.3 Referrer as Explicit Relationship State
 
-A **Referrer** relationship belongs to explicit Citizen/Membership operations.
+A **Referrer** relationship belongs to explicit Citizen relationship operations.
 
 This separation is important because Referrer is:
 
@@ -508,7 +481,7 @@ then:
 
 Citizen creation MUST NOT auto-initialize Link state.
 
-Link state exists only after explicit Citizen/Membership transaction processing.
+Link state exists only after explicit Citizen relationship transaction processing.
 
 ---
 
@@ -605,7 +578,7 @@ Nickname → Citizen owner / Citizen view
 
 ## 13.3 Citizen Protocol vs Membership API Surface
 
-As the documentation evolves, citizen-related query methods SHOULD be presented as part of the **Citizen Protocol API surface**, even when they expose relationship state historically described as “membership.”
+Citizen-related query methods SHOULD be presented as part of the **Citizen Protocol API surface**.
 
 This is because:
 
@@ -733,7 +706,7 @@ The protocol implementation SHOULD reject or prevent:
 |---|---|
 | `v3-basic-spec.md` | Overall V3 architecture and terminology |
 | `pqc-account-spec.md` | PQC authorization metadata connected to Citizen identity |
-| `transaction-spec.md` | Citizen/Membership operation payloads and authorization |
+| `transaction-spec.md` | Citizen relationship operation payloads and authorization |
 | `cad-spec.md` | CAD authorization commitment after CADFork |
 | `rpc-api-spec.md` | Public query and submission surfaces |
 | `testing-guide.md` | Reproducible Citizen protocol scenarios |
@@ -760,4 +733,4 @@ The following items remain to be finalized in later revisions:
 
 | Version | Date | Notes |
 |---|---|---|
-| v0.1 | 2026-05-15 | Replaces the former Membership Specification with a broader Citizen Protocol Specification covering Citizen lifecycle, CitizenBlock confirmation, deterministic initial state, RefCode, Nickname, explicit relationship operations, Citizen APIs, and sync/restart requirements |
+| v0.1 | 2026-05-15 | Initial Citizen Protocol Specification covering Citizen lifecycle, CitizenBlock confirmation, deterministic initial state, RefCode, Nickname, explicit relationship operations, Citizen APIs, and sync/restart requirements |
