@@ -23,8 +23,9 @@ This document introduces:
 5. Why those sizes matter for blockchain transaction and consensus design
 6. Where **Falcon / FN-DSA** fits in the standardization landscape
 7. What **NIST Security Levels** mean
-8. Why SymVerse plans to recommend **ML-DSA-87** after CADFork
-9. How these concerns connect to the SymVerse V3 documentation set
+8. How classical **ECDSA/secp256k1** compares with PQC signatures
+9. Why SymVerse plans to recommend **ML-DSA-87** after CADFork
+10. How these concerns connect to the SymVerse V3 documentation set
 
 This is a **background primer**, not a finalized protocol specification.
 
@@ -77,9 +78,83 @@ Therefore:
 
 ---
 
-# 4. ML-DSA Specification Snapshot
+# 4. ECDSA Baseline for Blockchain Comparison
 
-## 4.1 What Is ML-DSA?
+## 4.1 What Is ECDSA?
+
+**ECDSA** — Elliptic Curve Digital Signature Algorithm — is a classical public-key signature algorithm standardized in the NIST Digital Signature Standard.
+
+Many blockchain systems adopted ECDSA before the post-quantum transition became a practical protocol-design concern.  
+In Ethereum-compatible transaction models, ECDSA over the `secp256k1` curve is a familiar baseline for comparing key and signature sizes.
+
+ECDSA is **not post-quantum secure**.  
+It is included here because it provides the size baseline that makes PQC signature growth easier to understand.
+
+---
+
+## 4.2 secp256k1 Blockchain Baseline
+
+The `secp256k1` curve is a 256-bit elliptic curve.  
+In Ethereum’s signing model:
+
+- the private key is represented as **32 bytes**,
+- the public key is represented as **64 bytes** in raw `x || y` form,
+- the recoverable transaction signature is represented by:
+  - `v`: 1 byte recovery identifier,
+  - `r`: 32 bytes,
+  - `s`: 32 bytes.
+
+Thus:
+
+```text
+Ethereum-style recoverable ECDSA signature = 65 bytes
+```
+
+---
+
+## 4.3 ECDSA/secp256k1 Size Table
+
+| Item | Size | Notes |
+|---|---:|---|
+| **Private key** | 32 bytes | 256-bit scalar |
+| **Public key, raw form** | 64 bytes | `x || y`, as used in the Ethereum Yellow Paper representation |
+| **Public key, SEC1 compressed encoding** | 33 bytes | 1-byte prefix + 32-byte x-coordinate |
+| **Public key, SEC1 uncompressed encoding** | 65 bytes | 1-byte prefix + 32-byte x-coordinate + 32-byte y-coordinate |
+| **Signature, raw `(r,s)` pair** | 64 bytes | Two 32-byte scalar values |
+| **Ethereum-style recoverable signature `(v,r,s)`** | 65 bytes | 1-byte recovery identifier + 64-byte `(r,s)` |
+
+### Practical interpretation
+
+ECDSA signatures used in legacy blockchain transaction flows are compact:
+
+```text
+~65 bytes
+```
+
+This is the baseline against which PQC signatures should be compared.
+
+When a PQC signature is:
+
+- 666 bytes,
+- 2,420 bytes,
+- 4,627 bytes,
+- 7,856 bytes,
+- or even 49,856 bytes,
+
+the protocol-level impact is no longer a small serialization detail.  
+It can materially affect:
+
+- transaction propagation,
+- mempool pressure,
+- block payload size,
+- long-term ledger storage,
+- and consensus commitment design.
+
+---
+
+# 5. ML-DSA Specification Snapshot
+
+## 5.1 What Is ML-DSA?
 
 **ML-DSA** is NIST’s module-lattice-based post-quantum digital signature standard.
 
@@ -98,7 +173,7 @@ These parameter sets trade off:
 
 ---
 
-## 4.2 ML-DSA Key and Signature Sizes
+## 5.2 ML-DSA Key and Signature Sizes
 
 | Parameter Set | NIST Security Level | Private Key | Public Key | Signature |
 |---|---:|---:|---:|---:|
@@ -119,9 +194,9 @@ This matters for blockchains because signatures may appear:
 
 ---
 
-# 5. SLH-DSA Specification Snapshot
+# 6. SLH-DSA Specification Snapshot
 
-## 5.1 What Is SLH-DSA?
+## 6.1 What Is SLH-DSA?
 
 **SLH-DSA** is NIST’s stateless hash-based post-quantum digital signature standard.
 
@@ -135,7 +210,7 @@ The table below groups SHA2 and SHAKE variants together where the standardized p
 
 ---
 
-## 5.2 SLH-DSA Key and Signature Sizes
+## 6.2 SLH-DSA Key and Signature Sizes
 
 > **Note on private-key size:**  
 > FIPS 205 Table 2 lists public-key size and signature size.  
@@ -166,9 +241,9 @@ The transaction, block, and commitment structure may need to evolve as well.
 
 ---
 
-# 6. Understanding NIST Security Levels
+# 7. Understanding NIST Security Levels
 
-## 6.1 Why NIST Uses Categories Instead of a Single “Bit Security” Number
+## 7.1 Why NIST Uses Categories Instead of a Single “Bit Security” Number
 
 NIST does not classify post-quantum algorithms only by a single exact “bits of security” estimate.  
 Because future quantum-computer capabilities and future cryptanalytic advances are uncertain, this document uses the reader-friendly term **NIST Security Level**.
@@ -181,7 +256,7 @@ The categories are defined by comparison with well-understood symmetric-cryptogr
 
 ---
 
-## 6.2 NIST Security Level Reference Table
+## 7.2 NIST Security Level Reference Table
 
 | NIST Security Level | Reference Attack Difficulty |
 |---|---|
@@ -197,7 +272,7 @@ This document labels those categories as **Security Levels** for readability.
 
 ---
 
-## 6.3 How to Read Categories 1, 3, and 5
+## 7.3 How to Read Levels 1, 3, and 5
 
 For practical interpretation:
 
@@ -211,7 +286,7 @@ NIST’s FAQ explains that Categories **1, 3, and 5** are intended to be consist
 
 ---
 
-## 6.4 ML-DSA Parameter Sets and NIST Categories
+## 7.4 ML-DSA Parameter Sets and NIST Security Levels
 
 | ML-DSA Parameter Set | NIST Security Level | Practical Interpretation |
 |---|---:|---|
@@ -227,7 +302,7 @@ NIST FIPS 204 identifies:
 
 ---
 
-## 6.5 SymVerse Direction After CADFork
+## 7.5 SymVerse Direction After CADFork
 
 SymVerse plans to recommend:
 
@@ -249,7 +324,7 @@ NIST standardizes ML-DSA parameter sets and their security categories; SymVerse 
 
 ---
 
-## 6.6 Practical Comparison Within ML-DSA
+## 7.6 Practical Comparison Within ML-DSA
 
 | Parameter Set | Category | Signature Size | SymVerse CADFork Position |
 |---|---:|---:|---|
@@ -270,9 +345,9 @@ With CAD:
 
 ---
 
-# 7. Falcon / FN-DSA Specification Snapshot
+# 8. Falcon / FN-DSA Specification Snapshot
 
-## 7.1 What Is Falcon?
+## 8.1 What Is Falcon?
 
 **Falcon** is a lattice-based post-quantum digital signature scheme selected by NIST for standardization.  
 NIST’s future standard based on Falcon is named:
@@ -292,7 +367,7 @@ Falcon is especially relevant to blockchain design because it offers:
 
 ---
 
-## 7.2 Falcon Key and Signature Sizes
+## 8.2 Falcon Key and Signature Sizes
 
 | Parameter Set | Approx. NIST Security Level | Private Key | Public Key | Signature |
 |---|---:|---:|---:|---:|
@@ -323,7 +398,7 @@ At the same time, the implementation trade-off is important:
 
 ---
 
-## 7.3 Standardization Status
+## 8.3 Standardization Status
 
 Falcon should be presented differently from ML-DSA and SLH-DSA:
 
@@ -341,7 +416,7 @@ This distinction matters for blockchain adoption:
 
 ---
 
-## 7.4 Falcon Adoption in Blockchain and the CAD Perspective
+## 8.4 Falcon Adoption in Blockchain and the CAD Perspective
 
 Falcon has attracted strong interest in blockchain-oriented post-quantum work because its signatures are much smaller than those of ML-DSA and SLH-DSA.
 
@@ -401,9 +476,9 @@ SymVerse V3 aims to move beyond that constraint by adopting CAD and, after CADFo
 
 ---
 
-# 8. ML-KEM Specification Snapshot
+# 9. ML-KEM Specification Snapshot
 
-## 8.1 What Is ML-KEM?
+## 9.1 What Is ML-KEM?
 
 **ML-KEM** is NIST’s module-lattice-based key-encapsulation mechanism.  
 It is used to establish shared secrets over a public channel.
@@ -417,7 +492,7 @@ ML-KEM is not used to sign blockchain transactions, but it is part of the broade
 
 ---
 
-## 8.2 ML-KEM Key and Ciphertext Sizes
+## 9.2 ML-KEM Key and Ciphertext Sizes
 
 | Parameter Set | Security Category | Encapsulation Key | Decapsulation Key | Ciphertext | Shared Secret |
 |---|---:|---:|---:|---:|---:|
@@ -427,9 +502,73 @@ ML-KEM is not used to sign blockchain transactions, but it is part of the broade
 
 ---
 
-# 9. Why These Numbers Matter for Blockchain
+# 10. ECDSA vs PQC Signature Size Comparison
 
-## 9.1 Digital Signatures Are Central to Transaction Authorization
+## 10.1 Representative Comparison Table
+
+The following table compares a familiar blockchain ECDSA baseline with representative PQC signature families.
+
+> **Reading note:**  
+> This table is intended as a high-level comparison.  
+> Full parameter-set tables appear in the preceding sections.
+
+| Scheme / Parameter Set | Standardization Status | NIST Security Level | Private Key | Public Key | Signature |
+|---|---|---:|---:|---:|---:|
+| **ECDSA / secp256k1** | Classical legacy baseline | Not PQC-rated | 32 B | 64 B raw public key | 65 B recoverable transaction signature |
+| **Falcon-512** | NIST-selected; FN-DSA/FIPS 206 not yet final | Approx. Level 1 | 1,281 B | 897 B | 666 B |
+| **ML-DSA-44** | FIPS 204 final | Level 2 | 2,560 B | 1,312 B | 2,420 B |
+| **ML-DSA-65** | FIPS 204 final | Level 3 | 4,032 B | 1,952 B | 3,309 B |
+| **ML-DSA-87** | FIPS 204 final | Level 5 | 4,896 B | 2,592 B | 4,627 B |
+| **SLH-DSA-128s** | FIPS 205 final | Level 1 | 64 B | 32 B | 7,856 B |
+| **SLH-DSA-256f** | FIPS 205 final | Level 5 | 128 B | 64 B | 49,856 B |
+
+---
+
+## 10.2 Signature Size Multiples Relative to ECDSA
+
+Using the **65-byte Ethereum-style recoverable ECDSA signature** as a familiar baseline:
+
+| Scheme | Signature Size | Approx. Multiple vs ECDSA |
+|---|---:|---:|
+| **ECDSA / secp256k1** | 65 B | 1.0× |
+| **Falcon-512** | 666 B | 10.2× |
+| **ML-DSA-44** | 2,420 B | 37.2× |
+| **ML-DSA-65** | 3,309 B | 50.9× |
+| **ML-DSA-87** | 4,627 B | 71.2× |
+| **SLH-DSA-128s** | 7,856 B | 120.9× |
+| **SLH-DSA-256f** | 49,856 B | 767.0× |
+
+### Practical interpretation
+
+This comparison makes the protocol-design challenge concrete:
+
+```text
+ECDSA-sized blockchain commitment assumptions
+do not transfer cleanly to PQC-sized signatures.
+```
+
+Even Falcon-512, which is compact among major PQC signature candidates, is already roughly:
+
+```text
+10× the size of a familiar ECDSA transaction signature baseline.
+```
+
+`ML-DSA-87`, which SymVerse plans to recommend after CADFork, is roughly:
+
+```text
+71× that ECDSA signature baseline.
+```
+
+That is precisely why **CAD** matters:
+
+- without CAD, a stronger PQC parameter set can directly amplify committed ledger bytes,
+- with CAD, SymVerse can recommend a stronger long-term signature level while keeping the consensus commitment path fixed-size.
+
+---
+
+# 11. Why These Numbers Matter for Blockchain
+
+## 11.1 Digital Signatures Are Central to Transaction Authorization
 
 A blockchain account is typically controlled through a private key.  
 A transaction is accepted only when the network can verify that the proper key holder authorized it.
@@ -445,7 +584,7 @@ If the signature scheme protecting accounts becomes breakable, an attacker may b
 
 ---
 
-## 9.2 PQC Signatures Are Much Larger
+## 11.2 PQC Signatures Are Much Larger
 
 The signature-size landscape above shows that:
 
@@ -468,7 +607,7 @@ They can materially affect:
 
 ---
 
-## 9.3 Blockchain Design Must Consider Commitment Structure
+## 11.3 Blockchain Design Must Consider Commitment Structure
 
 If a blockchain permanently commits raw post-quantum signature bytes inside its consensus object, larger signatures may lead to sharply increased long-term replication and storage burden.
 
@@ -488,7 +627,7 @@ what should consensus permanently commit?
 
 ---
 
-# 10. Public-Key Exposure and Migration
+# 12. Public-Key Exposure and Migration
 
 In many blockchain designs, a public key or verification material becomes visible once a transaction is broadcast.
 
@@ -502,13 +641,13 @@ The exact exposure model differs by blockchain design, but the general post-quan
 
 ---
 
-# 11. How This Connects to SymVerse V3
+# 13. How This Connects to SymVerse V3
 
 The SymVerse V3 documentation set addresses PQC transition across several layers.
 
 | Document | Role |
 |---|---|
-| `pqc-and-blockchain-introduction.md` | Background, standards, Falcon/FN-DSA status, and practical size comparison |
+| `pqc-and-blockchain-introduction.md` | Background, ECDSA baseline, PQC standards, Falcon/FN-DSA status, and practical size comparison |
 | `v3-basic-spec.md` | Overall V3 scope and architecture |
 | `pqc-account-spec.md` | PQC account representation |
 | `transaction-spec.md` | PQC signature payloads and transaction structure |
@@ -520,11 +659,11 @@ The SymVerse V3 documentation set addresses PQC transition across several layers
 
 ---
 
-# 12. Practical Takeaway
+# 14. Practical Takeaway
 
 Post-quantum blockchain design is not only about replacing one signature algorithm with another.
 
-The standardized parameter tables show why:
+The standardized parameter tables — when compared against a familiar ECDSA/secp256k1 blockchain baseline — show why:
 
 - keys may become larger,
 - signatures often become much larger,
@@ -537,7 +676,7 @@ In that architecture, **CADFork** is important because it allows SymVerse to rec
 
 ---
 
-# 13. Recommended Reading Path
+# 15. Recommended Reading Path
 
 For readers new to the V3 documents:
 
@@ -553,10 +692,14 @@ For readers new to the V3 documents:
 
 ---
 
-# 14. Source Notes
+# 16. Source Notes
 
 The algorithm names, parameter sets, security categories, and byte sizes in this document are based on:
 
+- NIST FIPS 186-5 — Digital Signature Standard / ECDSA
+- SEC 2 — `secp256k1` 256-bit elliptic curve domain parameters
+- SEC 1 — elliptic-curve public-key point encoding rules
+- Ethereum Yellow Paper — `secp256k1` transaction-signing representation and `(v,r,s)` signature fields
 - NIST FIPS 203 — ML-KEM
 - NIST FIPS 204 — ML-DSA
 - NIST FIPS 205 — SLH-DSA
@@ -571,7 +714,7 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 
 ---
 
-# 15. Revision History
+# 17. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
@@ -581,3 +724,4 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 | v0.4 | 2026-05-15 | Added NIST Security Level explanation, ML-DSA category interpretation, and SymVerse CADFork recommendation for ML-DSA-87 |
 | v0.5 | 2026-05-15 | Reworded reader-facing NIST security-category language into the more accessible term “NIST Security Level” while retaining the official terminology note in the text |
 | v0.6 | 2026-05-15 | Expanded Falcon discussion to explain its pre-final-standardization status, blockchain adoption motivation, and why CAD avoids selecting a long-term signature strategy mainly from raw signature size |
+| v0.7 | 2026-05-15 | Added ECDSA/secp256k1 blockchain baseline specification and direct ECDSA-vs-PQC comparison tables for key and signature sizes |
