@@ -1,275 +1,179 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.2  
+> **Status:** Draft v0.3  
 > **Date:** 2026-05-15  
-> **Document Role:** Protocol specification for Citizen registration, Citizen runtime registry, and Citizen relationship operations in SymVerse V3
+> **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
 ---
 
 # 1. Overview
 
-The **SymVerse V3 Citizen Protocol** defines how Citizen identity data and Citizen runtime relationship state are managed across the protocol.
+The **SymVerse V3 Citizen Protocol** defines how a Citizen identity is created, how its public Citizen properties are assigned, and how Citizen-to-Citizen relationships are managed.
 
-The protocol separates:
+The protocol covers:
 
-1. **Citizen registration data**, which confirms the existence and base attributes of a Citizen, and
-2. **Citizen runtime registry state**, which maintains public aliases, referral codes, referrer relationships, link relationships, and membership activity credit.
+- Citizen public alias management through `NickName`
+- Deterministic Citizen referral codes through `RefCode`
+- Referrer registration through an existing Citizen’s RefCode
+- Link and LinkedBy relations between Citizens
+- Credit accumulation from Citizen relationship operations
+- Publicly visible query results and transaction-level operation rules
 
-This separation is intentional.
+The Citizen Protocol distinguishes between:
 
-| Category | Purpose | Storage |
-|---|---|---|
-| Citizen base information | Citizen creation and confirmation data | `CitizenStateDB` |
-| Citizen runtime registry | NickName, RefCode, Referrer, Link, LinkedBy, Credit | Main `StateDB` |
-
-The runtime registry is stored in a protocol-reserved storage account:
-
-```text
-StateDB[CitizenRegistryAddress].storage[key] = value
-```
-
-`CitizenRegistryAddress` is not an operational user account.  
-It is a protocol-reserved storage namespace used to maintain deterministic Citizen runtime state.
+1. **Citizen initialization**, which occurs when a Citizen is confirmed, and  
+2. **Citizen relationship operations**, which occur only through explicit Citizen membership transactions.
 
 ---
 
 # 2. Final Policy Summary
 
-The finalized Citizen Protocol policy is:
+## 2.1 Automatically assigned at Citizen confirmation
 
-## 2.1 Automatically applied when a Citizen is confirmed
+When a Citizen is confirmed, the protocol may automatically assign:
 
-When a Citizen is created and attached through CitizenBlock processing, only the following deterministic Citizen-owned state is automatically initialized:
-
-1. `CitizenV2.NickName`
-   - registered through `SetMembershipNickOwner`
-2. `RefCode`
-   - generated deterministically and registered through `SetMembershipInitialRefCode`
+| Item | Policy |
+|---|---|
+| `NickName` | Registered if supplied during Citizen creation |
+| `RefCode` | Automatically generated and assigned |
 
 ```text
 Citizen confirmation may initialize:
-- NickName owner registry
-- RefCode owner registry
+- NickName
+- RefCode
 ```
 
 ---
 
-## 2.2 Managed only through `TxTypeMembership`
+## 2.2 Managed only by explicit Citizen membership transactions
 
-The following runtime relationships are **not** automatically created during Citizen generation.
+The following are **not** created automatically when a Citizen is confirmed:
 
-They are managed only through explicit `TxTypeMembership` operations:
+| Item | Automatic at Citizen confirmation? |
+|---|---:|
+| Referrer | No |
+| Link | No |
+| LinkedBy | No |
 
-- NickName creation and deletion after initial registration
-- Referrer creation and deletion
-- Link creation and deletion
+They are created or removed only through explicit Citizen membership operations.
 
 ```text
-Citizen creation does not automatically initialize:
+Citizen confirmation does not automatically initialize:
 - Referrer
 - Link
+- LinkedBy
 ```
 
 ---
 
-## 2.3 Deprecated / unused flow
+## 2.3 Immutable and mutable properties
 
-The following initial-runtime mechanism is not used:
-
-```text
-InitialMembershipRuntimeEntry
-```
-
-The Citizen Protocol intentionally limits automatic processing during Citizen creation to deterministic self-owned index generation only.
-
-Allowed automatic processing:
-
-- NickName owner registration
-- RefCode owner registration
-
-Rejected automatic processing:
-
-- automatic Referrer creation
-- automatic Link creation
+| Item | Mutability |
+|---|---|
+| `NickName` | Can be deleted and recreated |
+| `RefCode` | Immutable |
+| `Referrer` | Can be deleted and recreated |
+| `Link` | Multiple links may be added and removed individually |
+| `Credit` | Increases when membership operations succeed |
 
 ---
 
 # 3. Terminology
 
-| Term | Meaning | Type |
+| Term | Meaning |
+|---|---|
+| **Citizen** | Protocol-level SymVerse identity |
+| **NickName** | Public alias owned by a Citizen |
+| **RefCode** | Citizen-owned deterministic referral code |
+| **inputRefCode** | RefCode supplied when registering a Referrer |
+| **Referrer** | Citizen address resolved from `inputRefCode` |
+| **Link** | Relationship created from one Citizen to another by target NickName |
+| **LinkedBy** | Reverse view showing which Citizens linked the target |
+| **Credit** | Citizen relationship activity score |
+| **Citizen membership transaction** | Transaction that creates or deletes NickName, Referrer, or Link state |
+
+---
+
+## 3.1 Important distinctions
+
+### RefCode and Referrer are different objects
+
+```text
+RefCode  = numeric referral code
+Referrer = address of the Citizen who owns that RefCode
+```
+
+A Citizen enters a RefCode to create a Referrer relation.  
+The protocol resolves that RefCode to its owner Citizen.
+
+---
+
+### Link and Referrer are independent relations
+
+A `Referrer` relation and a `Link` relation are separate.
+
+| Relation | Input | Result |
 |---|---|---|
-| **NickName** | Public Citizen alias | `string` |
-| **RefCode** | Citizen-owned unique referral code | `uint64` |
-| **inputRefCode** | RefCode supplied when creating a Referrer relation | `uint64` |
-| **Referrer** | Address of the owner of `inputRefCode` | `common.Address` |
-| **Link** | Relationship created by resolving a target NickName to an address | `common.Address` |
-| **LinkedBy** | Reverse relation showing who linked the target Citizen | `common.Address` |
-| **Credit** | Activity score updated by Citizen relationship operations | `uint64` |
+| Referrer | RefCode | Referrer address is registered |
+| Link | NickName | Link target address is registered |
 
 ---
 
-## 3.1 Important Distinctions
+# 4. Citizen Confirmation Policy
 
-The protocol uses the following distinctions:
+## 4.1 Initial Citizen properties
+
+At Citizen confirmation, the protocol may initialize only deterministic or directly supplied Citizen-owned properties:
+
+1. `NickName`, if supplied
+2. `RefCode`, always generated
+
+No relational state is created automatically.
+
+---
+
+## 4.2 Initial NickName
+
+If a Citizen is created with a NickName, that NickName is registered as the Citizen’s initial public alias.
+
+| Input | Result |
+|---|---|
+| NickName provided | Citizen begins with that NickName |
+| NickName omitted or blank | Citizen begins without a NickName |
+
+Example:
 
 ```text
-RefCode is a numeric code.
-Referrer is an address.
-```
-
-More precisely:
-
-- `RefCode` is a deterministic `uint64` generated for the Citizen itself.
-- `Referrer` is **not** a RefCode value.
-- `Referrer` is the **address** of the owner resolved from an input RefCode.
-
-Also:
-
-```text
-Link is separate from Referrer.
-```
-
-A Link relation:
-
-- uses **NickName** as the input,
-- resolves that NickName to an address,
-- stores a directional relationship from one Citizen to another.
-
----
-
-# 4. Storage Policy
-
-## 4.1 Storage Placement
-
-| Item | Storage Location | Description |
-|---|---|---|
-| Citizen base information | `CitizenStateDB` | Citizen creation and confirmation data |
-| NickName | Main `StateDB` | NickName runtime registry |
-| RefCode | Main `StateDB` | Citizen-owned referral code |
-| Referrer | Main `StateDB` | Owner address resolved from an input RefCode |
-| Link | Main `StateDB` | Forward link relation |
-| LinkedBy | Main `StateDB` | Reverse link index |
-| Credit | Main `StateDB` | Citizen relationship activity score |
-
----
-
-## 4.2 Registry Storage Namespace
-
-Citizen runtime registry state is stored under a protocol-reserved account:
-
-```text
-StateDB[CitizenRegistryAddress].storage[key] = value
-```
-
-The reserved account is used to avoid mixing:
-
-- Citizen confirmation data in `CitizenStateDB`
-- mutable runtime index and relationship data in main `StateDB`
-
-This separation preserves:
-
-- deterministic state transitions,
-- clean block processing responsibilities,
-- sync and replay consistency.
-
----
-
-# 5. Initial Citizen Runtime Policy
-
-## 5.1 Automatic Runtime Initialization
-
-When a `CitizenBlock` is attached to a main block, the main block processing path applies initial Citizen runtime state.
-
-Conceptual processing flow:
-
-```text
-CitizenBlock creation / attach
-  → main block header CBHash / CBNum set
-  → main block generation or validation/import path
-  → ApplyInitialMembershipRuntimeFromCitizenRef(...)
-  → ApplyInitialMembershipRuntimeFromCitizenBlock(...)
-  → NickName and RefCode are applied to main StateDB
+Citizen A is confirmed with NickName "addra01"
+→ Citizen A becomes discoverable by NickName "addra01"
 ```
 
 ---
 
-## 5.2 Automatically Applied Items
+## 4.3 Initial RefCode
 
-### 5.2.1 NickName
+Every confirmed Citizen receives a deterministic RefCode.
 
-If `CitizenV2.NickName` exists, the protocol attempts to register the initial NickName owner.
+A RefCode:
 
-Storage layout:
-
-```text
-nick.owner(domain, nick) -> owner address
-addr.nick(domain, addr)  -> nickHash
-nick.text(nickHash)      -> nick
-```
-
-Reference function:
-
-```go
-SetMembershipNickOwner(statedb, domain, nickName, symID)
-```
+- is assigned automatically,
+- uniquely belongs to the Citizen,
+- is not chosen by the user,
+- cannot be changed or deleted by membership transaction.
 
 ---
 
-### 5.2.2 RefCode
+# 5. RefCode Policy
 
-A RefCode is generated deterministically using:
+## 5.1 Meaning
 
-```text
-refCode = (citizenBlockNumber << 12) | citizenIndex
-```
+`RefCode` is the Citizen’s permanent referral code.
 
-Storage layout:
-
-```text
-refcode.owner(domain, refCode) -> owner address
-addr.refcode(domain, addr)     -> own refCode
-```
-
-Reference function:
-
-```go
-SetMembershipInitialRefCode(statedb, domain, refCode, symID)
-```
+It is used by another Citizen when creating a Referrer relation.
 
 ---
 
-## 5.3 Items Not Automatically Applied
-
-Citizen creation does **not** automatically create:
-
-- Referrer relations
-- Link relations
-
-Both are intentionally excluded from initial Citizen runtime processing.
-
-They must be created and deleted only through `TxTypeMembership`.
-
----
-
-# 6. RefCode Policy
-
-## 6.1 Meaning
-
-`RefCode` is a deterministic referral code owned by the Citizen.
-
-It is:
-
-- generated automatically during Citizen confirmation,
-- immutable,
-- non-random,
-- not user-selected,
-- not transaction-created,
-- not transaction-updatable,
-- not transaction-deletable.
-
----
-
-## 6.2 Generation Formula
+## 5.2 Generation formula
 
 ```text
 refCode = (citizenBlockNumber << 12) | citizenIndex
@@ -280,13 +184,13 @@ refCode = (citizenBlockNumber << 12) | citizenIndex
 | Citizen index bit width | 12 bits |
 | Maximum Citizens per CitizenBlock | 4096 |
 | `citizenIndex` range | `0 ~ 4095` |
-| Block number region | 52 bits |
+| Block-number region | 52 bits |
 
 ---
 
-## 6.3 Example RefCodes
+## 5.3 Example RefCodes
 
-| CitizenBlock | Index | RefCode | Full Format Example |
+| CitizenBlock | Index | RefCode | Full display example |
 |---:|---:|---:|---|
 | 1 | 0 | 4096 | `0000-0000-4096` |
 | 2 | 0 | 8192 | `0000-0000-8192` |
@@ -295,9 +199,9 @@ refCode = (citizenBlockNumber << 12) | citizenIndex
 
 ---
 
-## 6.4 Reverse Calculation
+## 5.4 Reverse calculation
 
-A RefCode can be decomposed as:
+A RefCode may be decomposed as:
 
 ```text
 citizenBlockNumber = refCode >> 12
@@ -306,24 +210,22 @@ citizenIndex       = refCode & 0xfff
 
 ---
 
-## 6.5 Generation Policy
+## 5.5 RefCode lifecycle
 
-| Policy Item | Rule |
-|---|---|
-| Creation timing | When the CitizenBlock is attached and main block processing runs |
-| Generation basis | CitizenBlock number + index inside CitizenBlock |
-| Transaction create | Not used |
-| Transaction update | Not allowed |
-| Transaction delete | Not allowed |
-| Mutability | Immutable |
+| Action | Allowed? |
+|---|---:|
+| Automatic creation at Citizen confirmation | Yes |
+| Transaction create | No |
+| Transaction update | No |
+| Transaction delete | No |
 
 ---
 
-## 6.6 Display Format
+## 5.6 Public display format
 
-The raw RefCode may be displayed in a normalized user-facing format.
+A RefCode may be displayed in a compact user-facing `ownCode` form.
 
-| RefCode | Full Format | Display `ownCode` |
+| RefCode | Full format | Display `ownCode` |
 |---:|---|---|
 | 4096 | `0000-0000-4096` | `4096` |
 | 8192 | `0000-0000-8192` | `8192` |
@@ -331,86 +233,52 @@ The raw RefCode may be displayed in a normalized user-facing format.
 | 12289 | `0000-0001-2289` | `0001-2289` |
 | 100002289 | `0001-0000-2289` | `0001-0000-2289` |
 
-The display formatter may remove leading `0000` groups while preserving the underlying deterministic RefCode.
+---
+
+# 6. NickName Policy
+
+## 6.1 Meaning
+
+`NickName` is a public alias that represents a Citizen in user-facing queries and Link operations.
 
 ---
 
-# 7. NickName Policy
+## 6.2 Citizen creation with NickName
 
-## 7.1 Meaning
-
-`NickName` is a public alias owned by a Citizen.
-
-Storage layout:
-
-```text
-nick.owner(domain, nick) -> owner address
-addr.nick(domain, addr)  -> nickHash
-nick.text(nickHash)      -> nick
-```
-
----
-
-## 7.2 NickName During Citizen Creation
-
-If `CitizenV2` contains a NickName, the protocol attempts to register the initial NickName owner.
-
-| Input | Processing |
+| Case | Result |
 |---|---|
-| NickName present | NickName registry is created |
-| NickName blank | Citizen is created without a NickName |
-
-Example:
-
-```text
-nick.owner(SYMVERSE, addra01) -> addrA
-addr.nick(SYMVERSE, addrA)    -> hash(addra01)
-nick.text(hash(addra01))      -> addra01
-```
+| Citizen is created with a valid NickName | NickName is initially registered |
+| Citizen is created without a NickName | Citizen has no initial NickName |
 
 ---
 
-## 7.3 `TxTypeMembership CreateNickName`
+## 6.3 CreateNickName
 
-`CreateNickName` is allowed only when the sender currently has no NickName.
+`CreateNickName` is allowed only if the Citizen currently has no NickName.
 
-| Current State | `CreateNickName` |
+| Current State | Operation Result |
 |---|---|
 | `NO_NICK` | Allowed |
 | `HAS_NICK` | Rejected |
 
-Policy:
-
-```text
-A Citizen can create a NickName through transaction only if no NickName is currently registered.
-```
-
 ---
 
-## 7.4 `TxTypeMembership DeleteNickName`
+## 6.4 DeleteNickName
 
-`DeleteNickName` is allowed only when the sender currently has a NickName.
+`DeleteNickName` is allowed only if the Citizen currently has a NickName.
 
-| Current State | `DeleteNickName` |
+| Current State | Operation Result |
 |---|---|
 | `HAS_NICK` | Allowed |
 | `NO_NICK` | Rejected |
 
-Deletion removes:
-
-```text
-nick.owner(domain, currentNick)
-addr.nick(domain, addr)
-nick.text(hash(currentNick))
-```
-
 ---
 
-## 7.5 NickName Change Policy
+## 6.5 NickName change policy
 
 NickName does not support direct update.
 
-A NickName change is represented as:
+A NickName change is performed as:
 
 ```text
 DeleteNickName → CreateNickName
@@ -427,17 +295,16 @@ NO_NICK  --DeleteNickName--> reject
 
 ---
 
-## 7.6 NickName Validation
+## 6.6 NickName validation
 
-NickName is used as a registry key.  
-Therefore all transaction-input NickName values are normalized before use.
+Input NickName values follow the same normalization and validation policy:
 
 | Rule | Policy |
 |---|---|
-| Trim | `strings.TrimSpace` |
-| Normalize | `strings.ToLower` |
+| Trim | Leading and trailing spaces removed |
+| Normalize | Lowercase |
 | Minimum length | 6 characters |
-| Empty string | Not allowed |
+| Empty string | Rejected |
 
 Validation applies to:
 
@@ -445,127 +312,85 @@ Validation applies to:
 - `CreateLink`
 - `DeleteLink`
 
-`DeleteNickName` deletes the current NickName from state and therefore does not require payload NickName validation.
+`DeleteNickName` refers to the Citizen’s current NickName and therefore does not require a NickName input.
 
 ---
 
-## 7.7 Simulator Fixture Values
+# 7. Referrer Policy
 
-Representative fixture values:
+## 7.1 Meaning
 
-```text
-nickA  = addra01
-nickA2 = bddra01
-nickT  = target01
-nickS  = second01
-```
+A `Referrer` is created by entering another Citizen’s RefCode.
 
----
-
-# 8. Referrer Policy
-
-## 8.1 Meaning
-
-`Referrer` is the owner address of an input RefCode.
-
-Resolution flow:
+Resolution model:
 
 ```text
-inputRefCode uint64
-  → refcode.owner lookup
-  → Referrer owner address
-```
-
-Therefore:
-
-```text
-Referrer is an address, not a numeric RefCode.
+inputRefCode
+  → RefCode owner
+  → Referrer address
 ```
 
 Example:
 
 ```text
-T.RefCode = 12290
-refcode.owner(SYMVERSE, 12290) -> T
+Citizen T owns RefCode 12290
 
-A submits CreateReferrer with RefCode = 12290
-addr.referrer(SYMVERSE, A) -> T
+Citizen A submits CreateReferrer with RefCode 12290
+
+Result:
+Citizen A.referrer = Citizen T
 ```
 
 ---
 
-## 8.2 Citizen Creation Does Not Create Referrer
+## 7.2 Citizen confirmation does not create Referrer
 
-Citizen creation does not automatically initialize Referrer.
+Referrer is **not** automatically created during Citizen confirmation.
 
-The previous idea of applying `inputRefCode` during Citizen creation is not used in the final policy.
-
-Referrer is created only by:
+It is created only through:
 
 ```text
-TxTypeMembership CreateReferrer
+CreateReferrer
 ```
 
 ---
 
-## 8.3 Storage Structure
+## 7.3 CreateReferrer
 
-```text
-addr.referrer(domain, addr) -> parent owner address
-```
+`CreateReferrer` is allowed only if the Citizen currently has no Referrer.
 
----
-
-## 8.4 `TxTypeMembership CreateReferrer`
-
-`CreateReferrer` is allowed only when no Referrer currently exists.
-
-| Current State | `CreateReferrer` |
+| Current State | Operation Result |
 |---|---|
 | `NO_PARENT` | Allowed |
 | `HAS_PARENT` | Rejected |
 
-Processing:
-
-```text
-payload.RefCode = inputRefCode
-parent = refcode.owner(domain, inputRefCode)
-addr.referrer(domain, sender) = parent
-```
-
 Validation:
 
-| Condition | Policy |
+| Condition | Result |
 |---|---|
 | `inputRefCode = 0` | Reject |
-| input RefCode owner missing | Reject |
-| `sender == parent` | Recommended reject |
-| sender already has parent | Reject |
+| input RefCode has no owner | Reject |
+| RefCode owner equals sender | Reject recommended |
+| sender already has a Referrer | Reject |
 
 ---
 
-## 8.5 `TxTypeMembership DeleteReferrer`
+## 7.4 DeleteReferrer
 
-`DeleteReferrer` is allowed only when a Referrer exists.
+`DeleteReferrer` is allowed only if a Referrer currently exists.
 
-| Current State | `DeleteReferrer` |
+| Current State | Operation Result |
 |---|---|
 | `HAS_PARENT` | Allowed |
 | `NO_PARENT` | Rejected |
 
-Deletion:
-
-```text
-addr.referrer(domain, sender) = empty
-```
-
 ---
 
-## 8.6 Referrer Change Policy
+## 7.5 Referrer change policy
 
 Referrer does not support direct update.
 
-A Referrer change is represented as:
+A Referrer change is performed as:
 
 ```text
 DeleteReferrer → CreateReferrer
@@ -582,57 +407,40 @@ NO_PARENT  --DeleteReferrer--> reject
 
 ---
 
-# 9. Link Policy
+# 8. Link and LinkedBy Policy
 
-## 9.1 Meaning
+## 8.1 Meaning
 
-`Link` is a NickName-based Citizen relationship created by `TxTypeMembership`.
-
-Link terminology replaces older sponsor-oriented terminology in policy, API, and logs.
-
-Terminology mapping:
-
-| Legacy Internal Term | Citizen Protocol Term |
-|---|---|
-| Sponsor | Link |
-| `sponsorCount` | `linkCount` |
-| `sponsors` | `links` |
-| `sponsorChildCount` | `linkedByCount` |
-| `sponsorChildren` | `linkedBy` |
-
----
-
-## 9.2 Input and Storage Model
-
-The input to Link creation is:
-
-```text
-target NickName
-```
-
-Processing resolves:
-
-```text
-target NickName → target owner address
-```
-
-Then stores the relationship by address.
+A `Link` is a directional Citizen relationship created by target NickName.
 
 Example:
 
 ```text
-T.NickName = target01
-nick.owner(SYMVERSE, target01) -> T
-
-A submits CreateLink("target01")
-A -> T link relation is stored
+Citizen A links target NickName "target01"
 ```
+
+If `target01` belongs to Citizen T:
+
+```text
+A → T
+```
+
+Then:
+
+- Citizen A shows T in `links`
+- Citizen T shows A in `linkedBy`
 
 ---
 
-## 9.3 Multiple Link Policy
+## 8.2 Multiple Link policy
 
-A Citizen may link multiple targets.
+A Citizen may maintain multiple Link relations.
+
+| Rule | Policy |
+|---|---|
+| Multiple targets | Allowed |
+| Self-link | Rejected |
+| Duplicate Link to same target | Rejected |
 
 Example:
 
@@ -642,230 +450,208 @@ A links C
 A links D
 ```
 
-Rules:
-
-- A Citizen may maintain multiple Link relations.
-- Self-link is not allowed.
-- Duplicate Link registration is not allowed.
-
 ---
 
-## 9.4 Storage Structure
-
-A Link relation is stored in both forward and reverse directions.
-
-### Forward index
-
-```text
-addr.link.index(domain, user, target) -> 1
-```
-
-### Reverse `LinkedBy` index
-
-```text
-link.children.count(domain, target) -> count
-link.children.at(domain, target, i) -> user address
-link.children.index(domain, target, user) -> i + 1
-```
-
-Example:
-
-```text
-A links T
-
-addr.link.index(SYMVERSE, A, T) -> 1
-
-link.children.count(SYMVERSE, T) -> 1
-link.children.at(SYMVERSE, T, 0) -> A
-link.children.index(SYMVERSE, T, A) -> 1
-```
-
-Some internal storage key names may still retain sponsor-based implementation naming.  
-However, public policy, API, documentation, and logs should use the term **Link**.
-
----
-
-## 9.5 `TxTypeMembership CreateLink`
+## 8.3 CreateLink
 
 Input:
 
 ```text
-payload.Nick = target NickName
+target NickName
 ```
 
 Validation:
 
-| Condition | Policy |
+| Condition | Result |
 |---|---|
 | target NickName empty | Reject |
 | target NickName owner missing | Reject |
-| target == sender | Reject |
+| target is sender | Reject |
 | same target already linked | Reject |
-| another Link already exists | Allowed |
-
-Processing:
-
-```text
-1. target = nick.owner(domain, payload.Nick)
-2. addr.link.index(domain, sender, target) = 1
-3. sender is added to target LinkedBy reverse index
-```
+| sender already has another Link | Allowed |
 
 ---
 
-## 9.6 `TxTypeMembership DeleteLink`
-
-Deletion also uses the target NickName.
+## 8.4 DeleteLink
 
 Input:
 
 ```text
-payload.Nick = target NickName
+target NickName
 ```
 
 Validation:
 
-| Condition | Policy |
+| Condition | Result |
 |---|---|
 | target NickName empty | Reject |
 | target NickName owner missing | Reject |
 | Link relation missing | Reject |
 | Link relation exists | Allowed |
 
-Processing:
+---
+
+## 8.5 LinkedBy reverse view
+
+If:
 
 ```text
-1. target = nick.owner(domain, payload.Nick)
-2. addr.link.index(domain, sender, target) = empty
-3. sender is removed from target LinkedBy reverse index
+Citizen A links Citizen T
 ```
 
-`LinkedBy` deletion uses a swap-last strategy to maintain compact indexed storage.
+then public query results must be able to express:
+
+```text
+Citizen A.links includes Citizen T
+Citizen T.linkedBy includes Citizen A
+```
+
+This reverse relation is part of the externally visible Citizen Protocol behavior.
 
 ---
 
-# 10. Credit Policy
+# 9. Credit Policy
 
-## 10.1 Meaning
+## 9.1 Meaning
 
 `Credit` is the Citizen relationship activity score.
 
-Storage structure:
-
-```text
-credit(addr) -> uint64
-```
-
 ---
 
-## 10.2 Credit Increment Rules
+## 9.2 Credit increments
 
-| Action | Credit Change |
+A successful Citizen membership operation increases the sender’s Credit by `+1`.
+
+| Operation | Credit Change |
 |---|---:|
-| `CreateNickName` | sender `+1` |
-| `DeleteNickName` | sender `+1` |
-| `CreateReferrer` | sender `+1` |
-| `DeleteReferrer` | sender `+1` |
-| `CreateLink` | sender `+1` |
-| `DeleteLink` | sender `+1` |
+| `CreateNickName` | `+1` |
+| `DeleteNickName` | `+1` |
+| `CreateReferrer` | `+1` |
+| `DeleteReferrer` | `+1` |
+| `CreateLink` | `+1` |
+| `DeleteLink` | `+1` |
 
-RefCode generation does not increase Credit because RefCode is automatically initialized during Citizen confirmation rather than created by a transaction.
+RefCode creation does not increase Credit because it is assigned automatically at Citizen confirmation.
 
 ---
 
-# 11. Operation Policy Summary
+# 10. Membership Operation Summary
 
 | Target | Create | Delete | Change Policy |
 |---|---|---|---|
-| NickName | During Citizen creation, or `CreateNickName` when `NO_NICK` | `DeleteNickName` when `HAS_NICK` | `Delete → Create` |
-| RefCode | Automatically generated during Citizen confirmation | Not allowed | Immutable |
-| Referrer | `CreateReferrer` when `NO_PARENT` | `DeleteReferrer` when `HAS_PARENT` | `Delete → Create` |
-| Link | `CreateLink` by target NickName | `DeleteLink` by target NickName | Multiple Links individually added/removed |
+| NickName | Initial Citizen creation, or `CreateNickName` when no NickName exists | `DeleteNickName` | `Delete → Create` |
+| RefCode | Automatic at Citizen confirmation | Not allowed | Immutable |
+| Referrer | `CreateReferrer` | `DeleteReferrer` | `Delete → Create` |
+| Link | `CreateLink` by target NickName | `DeleteLink` by target NickName | Multiple Links added/removed individually |
 
 ---
 
-# 12. `MembershipPayload` Field Meaning
+# 11. External Transaction Interface
 
-Current payload structure:
+Citizen relationship updates are expressed through Citizen membership transactions.
 
-```go
-type MembershipPayload struct {
-    Op      MembershipOp
-    Domain  string
-    Nick    string
-    RefCode uint64
-    Sponsor common.Address
-    Extra   []byte
-}
-```
+The externally meaningful fields are:
+
+| Field | Meaning |
+|---|---|
+| `Op` | Operation type |
+| `Domain` | Citizen protocol domain |
+| `Nick` | NickName or Link target NickName, depending on operation |
+| `RefCode` | Input RefCode used to create a Referrer relation |
+| `Extra` | Reserved extension field |
 
 ---
 
-## 12.1 Field Meaning by Operation
+## 11.1 Field usage by operation
 
-| Operation | `Nick` | `RefCode` | `Sponsor` |
+| Operation | `Nick` | `RefCode` | Description |
 |---|---|---|---|
-| `CreateNickName` | NickName to set | unused | unused |
-| `DeleteNickName` | unused | unused | unused |
-| `CreateReferrer` | unused | input RefCode | unused |
-| `DeleteReferrer` | unused | unused | unused |
-| `CreateLink` | target NickName | unused | unused |
-| `DeleteLink` | target NickName | unused | unused |
-
-`Sponsor common.Address` is not used under the current Citizen Protocol policy.
+| `CreateNickName` | NickName to register | unused | Create Citizen NickName |
+| `DeleteNickName` | unused | unused | Delete current Citizen NickName |
+| `CreateReferrer` | unused | input RefCode | Register Referrer |
+| `DeleteReferrer` | unused | unused | Delete current Referrer |
+| `CreateLink` | target NickName | unused | Link target Citizen |
+| `DeleteLink` | target NickName | unused | Remove target Link |
 
 ---
 
-# 13. Recommended Enum Organization
+## 11.2 Supported operation set
 
-Recommended enum:
+| Operation | Status |
+|---|---|
+| `CreateNickName` | Supported |
+| `DeleteNickName` | Supported |
+| `CreateReferrer` | Supported |
+| `DeleteReferrer` | Supported |
+| `CreateLink` | Supported |
+| `DeleteLink` | Supported |
 
-```go
-type MembershipOp uint8
+The following are not Citizen Protocol transaction operations:
 
-const (
-    MembershipOpCreateNickName MembershipOp = 1
-    MembershipOpDeleteNickName MembershipOp = 2
+| Operation | Status |
+|---|---|
+| `UpdateNickName` | Not supported |
+| `CreateRefCode` | Not supported |
+| `UpdateRefCode` | Not supported |
+| `DeleteRefCode` | Not supported |
 
-    MembershipOpCreateReferrer MembershipOp = 11
-    MembershipOpDeleteReferrer MembershipOp = 12
+---
 
-    // Existing enum names may remain for compatibility,
-    // but policy/API/log terms should use Link.
-    MembershipOpCreateLink MembershipOp = 21
-    MembershipOpDeleteLink MembershipOp = 22
-)
-```
+# 12. Public Query Surface
 
-Compatibility names may remain in code:
+The Citizen Protocol should expose Citizen state through public Citizen query APIs.
 
-```go
-MembershipOpCreateSponsor
-MembershipOpDeleteSponsor
-```
+The query surface should allow clients to inspect:
 
-But policy terminology should use:
+| Field Group | Example Observable Values |
+|---|---|
+| Citizen identity | SymID / Citizen address |
+| NickName | Current NickName |
+| RefCode | RefCode / formatted ownCode |
+| Referrer | Current Referrer address |
+| Links | Citizens linked by the current Citizen |
+| LinkedBy | Citizens that linked the current Citizen |
+| Credit | Current Citizen Credit |
+
+---
+
+## 12.1 Query by Citizen identity
+
+A client should be able to retrieve the current Citizen state by Citizen identity.
+
+Representative result shape:
 
 ```text
-Link
+Citizen
+  address
+  nickname
+  refCode
+  ownCode
+  referrer
+  linkCount
+  links
+  linkedByCount
+  linkedBy
+  credit
 ```
 
 ---
 
-## 13.1 Unsupported / Rejected Operations
+## 12.2 Query by NickName
 
-The following operations should be removed or rejected:
+A client should be able to resolve a valid NickName to its owning Citizen and retrieve the same public Citizen state.
 
-- `UpdateNickName`
-- `CreateRefCode`
-- `UpdateRefCode`
-- `DeleteRefCode`
+Example:
 
-RefCode is created automatically during Citizen confirmation and is not a transaction operation.
+```text
+NickName "target01"
+  → Citizen T
+  → Citizen T public state
+```
 
 ---
 
-# 14. State Transition Summary
+# 13. State Transition Summary
 
 | Target | Empty State | Create | Existing State | Delete |
 |---|---|---|---|---|
@@ -876,200 +662,17 @@ RefCode is created automatically during Citizen confirmation and is not a transa
 RefCode is not a state-transition target.
 
 ```text
-RefCode = immutable deterministic code generated during Citizen confirmation
+RefCode = immutable deterministic code assigned at Citizen confirmation
 ```
 
 ---
 
-# 15. Main Block Processing Integration
+# 14. Final Protocol Summary
 
-Initial Citizen runtime processing is not a simulator-only adjustment.  
-It must be part of the canonical main-chain state transition.
+## 14.1 NickName
 
----
-
-## 15.1 Required Application Points
-
-### 1. `GenerateChainWithBlockChain()`
-
-Apply before:
-
-```text
-finalize.Finalize()
-```
-
-using:
-
-```go
-ApplyInitialMembershipRuntimeFromCitizenRef(...)
-```
-
----
-
-### 2. `StateProcessor.Process()`
-
-Apply:
-
-```text
-after transaction loop
-before finalize.Finalize()
-```
-
-using:
-
-```go
-ApplyInitialMembershipRuntimeFromCitizenRef(...)
-```
-
----
-
-### 3. `dminer/worker` production block generation
-
-Apply before:
-
-```text
-finalize.Finalize()
-```
-
-using:
-
-```go
-ApplyInitialMembershipRuntimeFromCitizenRef(...)
-```
-
----
-
-## 15.2 CitizenStateDB Responsibility Boundary
-
-`ApplyCitizenV2()` is responsible only for:
-
-```text
-CitizenStateDB storage
-```
-
-It must **not** directly mutate the main `StateDB` Citizen runtime registry.
-
-The main runtime registry should be updated only through the dedicated initial-runtime application path.
-
----
-
-## 15.3 Shared Functions to Keep
-
-```go
-ApplyInitialMembershipRuntimeFromCitizenRef(
-    config,
-    statedb,
-    cichain,
-    cbHash,
-    cbNum,
-)
-
-ApplyInitialMembershipRuntimeFromCitizenBlock(
-    config,
-    statedb,
-    cb,
-)
-```
-
----
-
-## 15.4 Deprecated / Unused Functions
-
-The following should remain removed or unused:
-
-```text
-InitialMembershipRuntimeEntry
-ApplyCitizenV2InitialMembership
-ApplyCitizenV2Membership
-ExtractInitialMembershipRuntimeEntries
-ApplyInitialMembershipRuntimeEntries
-```
-
----
-
-# 16. Simulator Validation Criteria
-
-## 16.1 Initial Citizen Runtime
-
-Expected initial state:
-
-```text
-addrN nickname(doltwo)
-addrN refCode(4096 / 0000-0000-4096)
-```
-
----
-
-## 16.2 NickName Lifecycle
-
-```text
-addrA CreateNickName(addra01)
-addrA DeleteNickName(addra01)
-addrA CreateNickName(bddra01)
-```
-
-Final expected state:
-
-```text
-addrA nickname(bddra01)
-```
-
----
-
-## 16.3 Referrer Lifecycle
-
-```text
-addrA CreateReferrer(addrT_refcode)
-addrA referrer == addrT
-```
-
-Optional delete path:
-
-```text
-DeleteReferrer
-```
-
----
-
-## 16.4 Link Lifecycle
-
-```text
-addrA CreateLink(target01)
-addrA links contains addrT
-addrT linkedBy contains addrA
-```
-
-Optional delete path:
-
-```text
-DeleteLink
-```
-
----
-
-## 16.5 Final Expected State for Persistent Validation Scenario
-
-```text
-addrA
-  nickname(bddra01)
-  referrer(addrT)
-  linkCount(1)
-  links([addrT])
-
-addrT
-  nickname(target01)
-  linkedByCount(1)
-  linkedBy([addrA])
-```
-
----
-
-# 17. Final Protocol Summary
-
-## 17.1 NickName
-
-- May be initially registered during Citizen confirmation.
-- Transactional creation is allowed only when no NickName exists.
+- May be registered during Citizen confirmation.
+- May be created by transaction only if no NickName exists.
 - Change requires:
 
 ```text
@@ -1078,9 +681,9 @@ DeleteNickName → CreateNickName
 
 ---
 
-## 17.2 RefCode
+## 14.2 RefCode
 
-- Automatically generated during Citizen confirmation.
+- Automatically generated at Citizen confirmation.
 - Formula:
 
 ```text
@@ -1088,14 +691,14 @@ DeleteNickName → CreateNickName
 ```
 
 - Immutable.
-- Cannot be created, updated, or deleted by transaction.
+- Cannot be created, updated, or deleted by membership transaction.
 
 ---
 
-## 17.3 Referrer
+## 14.3 Referrer
 
-- Referrer is the owner address of an input RefCode.
-- Not automatically created during Citizen generation.
+- Referrer is the owner Citizen address of an input RefCode.
+- Not created automatically at Citizen confirmation.
 - Managed only by:
 
 ```text
@@ -1105,12 +708,11 @@ DeleteReferrer
 
 ---
 
-## 17.4 Link
+## 14.4 Link
 
 - Input is target NickName.
-- Storage is target address-based.
-- Supports forward and reverse indexes.
-- Not automatically created during Citizen generation.
+- Public results expose both `links` and `linkedBy`.
+- Not created automatically at Citizen confirmation.
 - Managed only by:
 
 ```text
@@ -1120,16 +722,17 @@ DeleteLink
 
 ---
 
-## 17.5 Credit
+## 14.5 Credit
 
-- Activity score incremented by `TxTypeMembership` actions.
-- RefCode generation does not grant Credit.
+- Incremented by successful Citizen membership operations.
+- RefCode assignment does not grant Credit.
 
 ---
 
-# 18. Revision History
+# 15. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
 | v0.1 | 2026-05-15 | Initial Citizen Protocol specification draft |
-| v0.2 | 2026-05-15 | Expanded into a full protocol specification covering Citizen runtime storage policy, RefCode, NickName, Referrer, Link, Credit, MembershipPayload semantics, enum guidance, block-processing integration, and simulator validation criteria |
+| v0.2 | 2026-05-15 | Expanded Citizen runtime and operation policy from internal implementation notes |
+| v0.3 | 2026-05-15 | Rewritten as a public-facing protocol specification by removing internal storage layout, internal function names, block-processing insertion details, and simulator validation procedures while strengthening external operation rules and public query behavior |
