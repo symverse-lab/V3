@@ -1,6 +1,6 @@
 # SymVerse V3 Transaction Specification
 
-> **Status:** Draft v0.4  
+> **Status:** Draft v0.5  
 > **Date:** 2026-05-15  
 > **Document Role:** Baseline transaction specification for SymVerse transaction fields, signing flow, transaction types, and deposit policy  
 > **Source Basis:** Existing SymVerse Transaction documentation
@@ -763,87 +763,57 @@ is an on-chain transaction and consumes Gas Fee.
 
 ## 9.5 Citizen Operation Payload
 
-The `input` field of a `TxTypeCitizen(11)` transaction contains an encoded:
+The `input` field of a `TxTypeCitizen(11)` transaction contains an encoded Citizen operation payload.
 
-```go
-type CitizenPayload struct {
-    Op CitizenOp
+The payload carries the following protocol-level fields:
 
-    // Common
-    Domain string
+| Field | Meaning |
+|---|---|
+| `Op` | Citizen operation code |
+| `Domain` | Citizen protocol domain |
+| `Nick` | Nick to create, or Link target Nick, depending on operation |
+| `RefCode` | Input RefCode used to create a Referrer relation |
+| `Sponsor` | Reserved by current policy; not used for Link registration |
+| `Extra` | Reserved extension field |
 
-    // For CreateNickName:
-    //   Nick is the nickname to create.
-    //
-    // For CreateSponsor/DeleteSponsor:
-    //   Nick is the sponsor nickname.
-    Nick string
-
-    // For CreateReferrer:
-    //   RefCode is inputRefCode.
-    //   The state stores referrer as the owner address of this RefCode.
-    RefCode uint64
-
-    // Reserved by current policy.
-    // Sponsor registration uses Nick, not direct address.
-    Sponsor common.Address
-
-    // Reserved
-    Extra []byte
-}
-```
-
-The most important field is:
+The key field is:
 
 ```text
-CitizenPayload.Op
+Op
 ```
 
 `Op` determines which Citizen runtime operation the transaction requests.
 
 ---
 
-## 9.6 `CitizenPayload.Op` Operation Codes
+## 9.6 Operation Codes
 
-The operation code type is:
+The Citizen operation code is carried in the payload field:
 
-```go
-type CitizenOp uint8
+```text
+Op
 ```
 
 The current operation values are:
 
-```go
-const (
-    // NickName operations
-    CitizenOpCreateNickName CitizenOp = 1
-    CitizenOpDeleteNickName CitizenOp = 2
+| Payload `Op` Value | Operation Constant Reference | Public Citizen Action |
+|---:|---|---|
+| `1` | `CitizenOpCreateNickName` | `CreateNick` |
+| `2` | `CitizenOpDeleteNickName` | `DeleteNick` |
+| `11` | `CitizenOpCreateReferrer` | `CreateReferrer` |
+| `12` | `CitizenOpDeleteReferrer` | `DeleteReferrer` |
+| `21` | `CitizenOpCreateSponsor` | `CreateLink` |
+| `22` | `CitizenOpDeleteSponsor` | `DeleteLink` |
 
-    // Referrer operations
-    CitizenOpCreateReferrer CitizenOp = 11
-    CitizenOpDeleteReferrer CitizenOp = 12
-
-    // Sponsor relation operations
-    CitizenOpCreateSponsor CitizenOp = 21
-    CitizenOpDeleteSponsor CitizenOp = 22
-)
-```
-
-These constants are encoded into:
-
-```text
-CitizenPayload.Op
-```
-
-and define the actual state-change request carried by the transaction.
+These values define the state-change request carried by the Citizen transaction payload.
 
 ---
 
-## 9.7 `CitizenPayload.Op` Semantic Mapping
+## 9.7 Operation Semantic Mapping
 
 The public Citizen Protocol terminology and the encoded operation constants map as follows.
 
-| Public Citizen Action | Encoded `CitizenPayload.Op` Constant | `Op` Value | Meaning |
+| Public Citizen Action | Encoded `Op` Constant | `Op` Value | Meaning |
 |---|---|---:|---|
 | `CreateNick` | `CitizenOpCreateNickName` | `1` | Creates the sender’s current Nick |
 | `DeleteNick` | `CitizenOpDeleteNickName` | `2` | Deletes the sender’s current Nick |
@@ -866,13 +836,13 @@ NickName
 Sponsor
 ```
 
-The encoded operation values remain authoritative for transaction payload construction.
+The operation values remain authoritative for transaction payload construction.
 
 ---
 
 ## 9.8 Payload Field Usage by Operation
 
-| Public Citizen Action | `CitizenPayload.Op` | `Nick` | `RefCode` | `Sponsor` | Description |
+| Public Citizen Action | `Op` | `Nick` | `RefCode` | `Sponsor` | Description |
 |---|---|---|---|---|---|
 | `CreateNick` | `CitizenOpCreateNickName` | Nick to register | unused | unused | Create the sender’s current Nick |
 | `DeleteNick` | `CitizenOpDeleteNickName` | unused | unused | unused | Delete the sender’s current Nick |
@@ -882,21 +852,21 @@ The encoded operation values remain authoritative for transaction payload constr
 | `DeleteLink` | `CitizenOpDeleteSponsor` | target Nick | unused | unused | Delete a Link to the target Citizen |
 
 `Sponsor` is reserved by the current policy.  
-Link creation and deletion use:
+Link creation and deletion use the payload field:
 
 ```text
-CitizenPayload.Nick
+Nick
 ```
 
 rather than a direct Sponsor address.
 
 ---
 
-## 9.9 Supported and Unsupported Payload Operations
+## 9.9 Supported and Unsupported Operations
 
-### Supported `CitizenPayload.Op` values
+### Supported `Op` values
 
-| `CitizenPayload.Op` | Status |
+| `Op` Constant | Status |
 |---|---|
 | `CitizenOpCreateNickName` | Supported |
 | `CitizenOpDeleteNickName` | Supported |
@@ -924,14 +894,14 @@ Citizen Protocol transaction:
   to    = addrA
   value = 0
   type  = 11
-  input = Citizen operation payload with CitizenPayload.Op = CitizenOpCreateNickName
+  input = Citizen operation payload with Op = CitizenOpCreateNickName
 ```
 
 The transaction input payload carries:
 
 ```text
-CitizenPayload.Op   = CitizenOpCreateNickName
-CitizenPayload.Nick = "addra01"
+Op   = CitizenOpCreateNickName
+Nick = "addra01"
 ```
 
 ---
@@ -1012,5 +982,6 @@ should be specified in later dedicated revisions or companion documents so that 
 |---|---|---|
 | v0.1 | 2026-05-15 | Initial baseline transaction specification drafted from the existing SymVerse Transaction documentation |
 | v0.2 | 2026-05-15 | Added `type = 11` Citizen Protocol transaction, including `TxTypeCitizen`, `from == to` rule, Gas Fee statement, Citizen payload fields, supported operation families, and cross-reference to the Citizen Protocol Specification |
-| v0.3 | 2026-05-15 | Clarified that Citizen runtime actions are encoded through `CitizenPayload.Op`, added the `CitizenPayload` and `CitizenOp` structures, documented concrete `Op` values, mapped public Citizen actions to encoded operation constants, and detailed per-operation payload field usage |
-| v0.4 | 2026-05-15 | Removed wrapper-function discussion from the transaction specification so that the Type 11 section remains focused on transaction structure, `CitizenPayload.Op`, and direct payload construction rules |
+| v0.3 | 2026-05-15 | Clarified that Citizen runtime actions are encoded through the payload `Op` field, documented concrete operation values, mapped public Citizen actions to encoded operation constants, and detailed per-operation payload field usage |
+| v0.4 | 2026-05-15 | Refined the Type 11 transaction section so that it remains focused on transaction structure, operation code semantics, and direct payload construction rules |
+| v0.5 | 2026-05-15 | Removed internal Go struct and enum declarations from the Type 11 transaction section, retaining only public payload field definitions, operation-code tables, and protocol-level transaction semantics |
