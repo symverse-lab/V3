@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.6  
+> **Status:** Draft v0.7  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -12,12 +12,13 @@ The **SymVerse V3 Citizen Protocol** defines how a Citizen identity is created, 
 
 The protocol covers:
 
-- Citizen public identity management through `NickName`
-- NickName as a globally unique Citizen lookup key
-- **Direct coin transfer to a NickName**, without requiring the sender to enter a raw blockchain address
+- Initial Citizen public identity registration through `NickName` at Citizen confirmation
+- Ongoing Citizen public alias operations through `Nick`
+- Nick as a globally unique Citizen lookup key
+- **Direct coin transfer to a Nick**, without requiring the sender to enter a raw blockchain address
 - Citizen referral codes through `RefCode`
 - Referrer registration through an existing Citizen’s RefCode
-- Link and LinkedBy relations created through NickName resolution
+- Link and LinkedBy relations created through Nick resolution
 - Credit accumulation from Citizen relationship operations
 - Publicly visible query results and transaction-level operation rules
 
@@ -36,7 +37,7 @@ When a Citizen is confirmed, the protocol may automatically assign:
 
 | Item | Policy |
 |---|---|
-| `NickName` | Registered if supplied during Citizen creation |
+| `NickName` | Registered once if supplied during initial Citizen creation |
 | `RefCode` | Automatically generated and assigned |
 
 ```text
@@ -72,11 +73,36 @@ Citizen confirmation does not automatically initialize:
 
 | Item | Mutability |
 |---|---|
-| `NickName` | Can be deleted and recreated |
+| `Nick` | Can be deleted and recreated after initial Citizen registration |
 | `RefCode` | Immutable |
 | `Referrer` | Can be deleted and recreated |
 | `Link` | Multiple links may be added and removed individually |
 | `Credit` | Increases when membership operations succeed |
+
+---
+
+## 2.4 Gas Fee for Citizen Runtime Transactions
+
+Citizen runtime state changes are executed as blockchain transactions and therefore consume **Gas Fee**.
+
+This applies to operations such as:
+
+- `CreateNick`
+- `DeleteNick`
+- `CreateReferrer`
+- `DeleteReferrer`
+- `CreateLink`
+- `DeleteLink`
+
+The exact gas cost is determined by the chain’s transaction and execution rules, but the protocol-level principle is:
+
+```text
+Any post-registration Citizen state change requires an on-chain transaction
+and consumes Gas Fee.
+```
+
+Initial `NickName` assignment during Citizen registration is part of the Citizen creation flow.  
+Post-registration Nick operations such as `CreateNick` and `DeleteNick` are separate transactions and consume Gas Fee.
 
 ---
 
@@ -85,11 +111,12 @@ Citizen confirmation does not automatically initialize:
 | Term | Meaning |
 |---|---|
 | **Citizen** | Protocol-level SymVerse identity |
-| **NickName** | Public alias owned by a Citizen |
+| **NickName** | Initial Citizen alias field used only during first Citizen registration |
+| **Nick** | Public Citizen alias used after registration in transactions, queries, links, and transfers |
 | **RefCode** | Citizen-owned deterministic referral code |
 | **inputRefCode** | RefCode supplied when registering a Referrer |
 | **Referrer** | Citizen address resolved from `inputRefCode` |
-| **Link** | Relationship created from one Citizen to another by target NickName |
+| **Link** | Relationship created from one Citizen to another by target Nick |
 | **LinkedBy** | Reverse view showing which Citizens linked the target |
 | **Credit** | Citizen relationship activity score |
 | **Citizen membership transaction** | Transaction that creates or deletes NickName, Referrer, or Link state |
@@ -97,6 +124,24 @@ Citizen confirmation does not automatically initialize:
 ---
 
 ## 3.1 Important distinctions
+
+### NickName and Nick are different terms
+
+```text
+NickName = initial Citizen registration field
+Nick     = ongoing public Citizen alias after registration
+```
+
+`NickName` is used only when a Citizen is first registered through the Citizen creation path.  
+After that first registration boundary, the protocol terminology should use:
+
+- `Nick`
+- `CreateNick`
+- `DeleteNick`
+- `SendTransactionToNick`
+- `SendRawTransactionToNick`
+
+This distinction keeps CitizenBlock initialization terminology separate from post-registration runtime operations.
 
 ### RefCode and Referrer are different objects
 
@@ -127,8 +172,8 @@ A `Referrer` relation and a `Link` relation are separate.
 
 At Citizen confirmation, the protocol may initialize only deterministic or directly supplied Citizen-owned properties:
 
-1. `NickName`, if supplied
-2. `RefCode`, always generated
+1. `NickName`, if supplied during initial Citizen registration
+2. `RefCode`, always assigned
 
 No relational state is created automatically.
 
@@ -136,7 +181,7 @@ No relational state is created automatically.
 
 ## 4.2 Initial NickName
 
-If a Citizen is created with a NickName, that NickName is registered as the Citizen’s initial public alias.
+If a Citizen is created with a NickName, that NickName is registered as the Citizen’s initial public alias. After this initial registration step, the protocol refers to the public alias as `Nick`.
 
 | Input | Result |
 |---|---|
@@ -147,7 +192,7 @@ Example:
 
 ```text
 Citizen A is confirmed with NickName "addra01"
-→ Citizen A becomes discoverable by NickName "addra01"
+→ Citizen A becomes discoverable by Nick "addra01"
 ```
 
 ---
@@ -165,13 +210,13 @@ A RefCode:
 
 ---
 
-# 5. NickName Policy
+# 5. Nick Policy
 
 ## 5.1 Why NickName Is Central to the Citizen Protocol
 
-`NickName` is the primary public identifier of a Citizen.
+`Nick` is the primary public identifier of a Citizen after the initial Citizen registration step.
 
-The Citizen Protocol is designed around NickName because it provides:
+The Citizen Protocol is designed around Nick because it provides:
 
 - a human-readable Citizen identifier,
 - a globally unique public lookup key within the blockchain,
@@ -187,13 +232,13 @@ Address identifies a blockchain account.
 NickName identifies a Citizen in a human-readable way.
 ```
 
-A NickName is not merely a display label.  
+A Nick is not merely a display label.  
 It is a **protocol-recognized unique Citizen key**.
 
 This design enables a distinctive Citizen Protocol feature:
 
 ```text
-A sender may transfer coins directly to a NickName,
+A sender may transfer coins directly to a Nick,
 instead of manually entering the recipient's raw blockchain address.
 ```
 
@@ -204,39 +249,39 @@ That capability is exposed through dedicated transfer APIs such as:
 
 ---
 
-## 5.2 NickName as a Unique Blockchain Key
+## 5.2 Nick as a Unique Blockchain Key
 
-A valid NickName must be unique within the Citizen protocol domain.
+A valid Nick must be unique within the Citizen protocol domain.
 
 ```text
-One NickName → One Citizen
+One Nick → One Citizen
 ```
 
 At any given state:
 
-- the same NickName cannot be owned by multiple Citizens,
-- a Citizen query by NickName must resolve to a single owner,
-- Link operations using NickName must resolve to exactly one target Citizen,
-- NickName-based coin transfer must resolve to exactly one recipient Citizen.
+- the same Nick cannot be owned by multiple Citizens,
+- a Citizen query by Nick must resolve to a single owner,
+- Link operations using Nick must resolve to exactly one target Citizen,
+- Nick-based coin transfer must resolve to exactly one recipient Citizen.
 
 This uniqueness is fundamental to the Citizen Protocol.
 
 Example:
 
 ```text
-NickName "target01"
+Nick "target01"
   → resolves to exactly one Citizen
 ```
 
-If another Citizen attempts to register the same NickName, the operation must be rejected.
+If another Citizen attempts to register the same Nick, the operation must be rejected.
 
 ---
 
-## 5.3 Domain-Label Style NickName Rule
+## 5.3 Domain-Label Style Nick Rule
 
-NickName follows a **domain-label style rule**.
+Nick follows a **domain-label style rule**.
 
-This means that a NickName behaves like a compact, single-label public identifier rather than an arbitrary free-form display name.
+This means that a Nick behaves like a compact, single-label public identifier rather than an arbitrary free-form display name.
 
 The rule is designed to make NickNames:
 
@@ -269,10 +314,10 @@ A NickName may contain only:
 | Rule | Policy |
 |---|---|
 | Minimum length | 6 characters |
-| Maximum length | 63 characters |
+| Maximum length | 32 characters |
 
 The minimum length of **6 characters** prevents overly short and ambiguous labels.  
-The maximum length of **63 characters** follows the familiar size boundary of a single DNS-style label.
+The maximum length of **32 characters** keeps Nicks concise and practical for public Citizen identity, transfer, and link operations.
 
 ---
 
@@ -280,7 +325,7 @@ The maximum length of **63 characters** follows the familiar size boundary of a 
 
 Hyphen `-` is allowed only inside the NickName.
 
-| NickName | Valid? | Reason |
+| Nick | Valid? | Reason |
 |---|---:|---|
 | `alpha-01` | Yes | Hyphen is internal |
 | `-alpha01` | No | Cannot start with hyphen |
@@ -336,12 +381,12 @@ and therefore refer to the same NickName key.
 A reader-friendly validation rule may be expressed as:
 
 ```regex
-^[a-z0-9](?:[a-z0-9-]{4,61}[a-z0-9])$
+^[a-z0-9](?:[a-z0-9-]{4,30}[a-z0-9])$
 ```
 
 This regex enforces:
 
-- total length of 6 to 63 characters,
+- total length of 6 to 32 characters,
 - first character must be `a-z` or `0-9`,
 - last character must be `a-z` or `0-9`,
 - middle characters may be `a-z`, `0-9`, or `-`,
@@ -353,7 +398,7 @@ This regex enforces:
 |---|---|
 | `^` | Start of string |
 | `[a-z0-9]` | First character must be lowercase letter or digit |
-| `(?:[a-z0-9-]{4,61}[a-z0-9])` | Middle and final portion; ensures total length and final alphanumeric character |
+| `(?:[a-z0-9-]{4,30}[a-z0-9])` | Middle and final portion; ensures total length and final alphanumeric character |
 | `$` | End of string |
 
 ---
@@ -362,7 +407,7 @@ This regex enforces:
 
 ### 5.5.1 Valid examples
 
-| NickName | Why valid |
+| Nick | Why valid |
 |---|---|
 | `addra01` | 7 characters, lowercase letters and digits |
 | `target01` | 8 characters, lowercase letters and digits |
@@ -375,7 +420,7 @@ This regex enforces:
 
 ### 5.5.2 Invalid examples
 
-| NickName | Why rejected |
+| Nick | Why rejected |
 |---|---|
 | `abc` | Fewer than 6 characters |
 | `_alpha01` | Underscore not allowed |
@@ -389,98 +434,98 @@ This regex enforces:
 
 ---
 
-## 5.6 Citizen Creation with NickName
+## 5.6 Initial Citizen Registration with NickName
 
-A Citizen may receive an initial NickName at confirmation.
+A Citizen may receive an initial `NickName` at confirmation. This is the only stage where the protocol uses the term `NickName` for the alias field.
 
 | Case | Result |
 |---|---|
-| Citizen is created with a valid NickName | NickName is initially registered |
-| Citizen is created without a NickName | Citizen has no initial NickName |
+| Citizen is created with a valid `NickName` | Initial Nick is registered |
+| Citizen is created without a `NickName` | Citizen has no initial Nick |
 
 Example:
 
 ```text
-Citizen A is confirmed with NickName "addra01"
-→ "addra01" becomes the public Citizen key for Citizen A
+Citizen A is confirmed with `NickName = "addra01"`
+→ after registration, `addra01` becomes Citizen A’s public `Nick`
 ```
 
 ---
 
-## 5.7 CreateNickName
+## 5.7 CreateNick
 
-`CreateNickName` is allowed only if the Citizen currently has no NickName.
+`CreateNick` is allowed only if the Citizen currently has no Nick. Because it is an on-chain Citizen runtime transaction, it consumes Gas Fee.
 
 | Current State | Operation Result |
 |---|---|
 | `NO_NICK` | Allowed |
 | `HAS_NICK` | Rejected |
 
-The requested NickName must:
+The requested Nick must:
 
 - satisfy the NickName validation rule,
 - not already belong to another Citizen,
-- become the Citizen’s unique public NickName when accepted.
+- become the Citizen’s unique public Nick when accepted.
 
 ---
 
-## 5.8 DeleteNickName
+## 5.8 DeleteNick
 
-`DeleteNickName` is allowed only if the Citizen currently has a NickName.
+`DeleteNick` is allowed only if the Citizen currently has a Nick. Because it is an on-chain Citizen runtime transaction, it consumes Gas Fee.
 
 | Current State | Operation Result |
 |---|---|
 | `HAS_NICK` | Allowed |
 | `NO_NICK` | Rejected |
 
-Deletion releases the Citizen’s current NickName from ownership.
+Deletion releases the Citizen’s current Nick from ownership.
 
 After deletion:
 
-- the Citizen has no NickName,
-- the deleted NickName no longer resolves to that Citizen,
-- a new NickName may later be created through `CreateNickName`.
+- the Citizen has no Nick,
+- the deleted Nick no longer resolves to that Citizen,
+- a new Nick may later be created through `CreateNick`.
 
 ---
 
-## 5.9 NickName Change Process
+## 5.9 Nick Change Process
 
-NickName does **not** support direct update.
+Nick does **not** support direct update.
 
-A NickName change is performed as a two-step protocol process:
+A Nick change is performed as a two-step protocol process:
 
 ```text
-DeleteNickName → CreateNickName
+DeleteNick → CreateNick
 ```
 
 Example:
 
 ```text
-Citizen A currently owns "addra01"
+Citizen A currently owns Nick "addra01"
 
-1. DeleteNickName
+1. DeleteNick
    → Citizen A no longer owns "addra01"
 
-2. CreateNickName("bddra01")
+2. CreateNick("bddra01")
    → Citizen A now owns "bddra01"
 ```
 
 State transitions:
 
 ```text
-NO_NICK  --CreateNickName--> HAS_NICK
-HAS_NICK --DeleteNickName--> NO_NICK
-HAS_NICK --CreateNickName--> reject
-NO_NICK  --DeleteNickName--> reject
+NO_NICK  --CreateNick--> HAS_NICK
+HAS_NICK --DeleteNick--> NO_NICK
+HAS_NICK --CreateNick--> reject
+NO_NICK  --DeleteNick--> reject
 ```
 
-This explicit two-step process keeps NickName ownership changes clear and auditable.
+This explicit two-step process keeps Nick ownership changes clear and auditable.
 
 ---
 
-## 5.10 Direct Coin Transfer to NickName
+## 5.10 Direct Coin Transfer to Nick
 
-A NickName can act as a human-readable transfer destination.
+A Nick can act as a human-readable transfer destination.
 
 Instead of requiring a sender to know and enter:
 
@@ -491,13 +536,13 @@ Instead of requiring a sender to know and enter:
 the Citizen Protocol allows the sender to specify:
 
 ```text
-recipient NickName
+recipient Nick
 ```
 
 The system resolves:
 
 ```text
-NickName → Citizen owner address
+Nick → Citizen owner address
 ```
 
 and uses that resolved address as the coin transfer recipient.
@@ -518,7 +563,7 @@ Send coins to a long raw address string
 
 ### 5.10.1 `SendTransactionToNick`
 
-`SendTransactionToNick` is used when a wallet, console, or RPC client submits a normal transaction by NickName.
+`SendTransactionToNick` is used when a wallet, console, or RPC client submits a normal transaction by Nick.
 
 Conceptual example:
 
@@ -534,7 +579,7 @@ Resolution flow:
 
 ```text
 "target01"
-  → resolve NickName owner
+  → resolve Nick owner
   → recipient Citizen address
   → submit coin transfer
 ```
@@ -543,14 +588,14 @@ Expected result:
 
 ```text
 Citizen A sends 100 SYM
-to the Citizen who owns NickName "target01".
+to the Citizen who owns Nick "target01".
 ```
 
 ---
 
 ### 5.10.2 `SendRawTransactionToNick`
 
-`SendRawTransactionToNick` is used when the sender prepares or signs a transaction externally and submits the raw transaction using a NickName destination.
+`SendRawTransactionToNick` is used when the sender prepares or signs a transaction externally and submits the raw transaction using a Nick destination.
 
 Conceptual example:
 
@@ -565,7 +610,7 @@ Resolution flow:
 
 ```text
 "target01"
-  → resolve NickName owner
+  → resolve Nick owner
   → bind the raw transfer destination to that Citizen address
   → submit the raw transaction
 ```
@@ -574,65 +619,65 @@ Expected result:
 
 ```text
 A signed raw transaction is submitted
-with the transfer destination resolved from NickName "target01".
+with the transfer destination resolved from Nick "target01".
 ```
 
 The exact RPC parameter layout belongs to the public RPC/API specification, but the Citizen Protocol requirement is clear:
 
 ```text
-NickName must be usable as a direct transfer destination.
+Nick must be usable as a direct transfer destination.
 ```
 
 ---
 
 ### 5.10.3 Why This Is a Distinctive Citizen Protocol Capability
 
-NickName-based transfer is more than a cosmetic convenience.
+Nick-based transfer is more than a cosmetic convenience.
 
 It means:
 
-1. NickName is a **functional protocol key**, not only a profile label.
-2. A globally unique NickName can be used for:
+1. Nick is a **functional protocol key**, not only a profile label.
+2. A globally unique Nick can be used for:
    - lookup,
    - relationship creation,
    - and direct asset transfer.
 3. Citizen identity becomes directly usable in ordinary economic activity on-chain.
 
-This makes NickName one of the most important externally visible features of the Citizen Protocol.
+This makes Nick one of the most important externally visible features of the Citizen Protocol.
 
 ---
 
-## 5.11 NickName Use in Link Operations
+## 5.11 Nick Use in Link Operations
 
-NickName is also the target identifier for Link creation and deletion.
+Nick is also the target identifier for Link creation and deletion.
 
-| Operation | NickName Role |
+| Operation | Nick Role |
 |---|---|
-| `CreateLink` | Target Citizen is selected by NickName |
-| `DeleteLink` | Existing Link target is selected by NickName |
+| `CreateLink` | Target Citizen is selected by Nick |
+| `DeleteLink` | Existing Link target is selected by Nick |
 
 Because Link operations depend on NickName resolution:
 
-- target NickName must be valid,
-- target NickName must resolve to an existing Citizen,
+- target Nick must be valid,
+- target Nick must resolve to an existing Citizen,
 - Link creation cannot rely on ambiguous or duplicate identifiers.
 
-This is another reason NickName uniqueness is foundational to the Citizen Protocol.
+This is another reason Nick uniqueness is foundational to the Citizen Protocol.
 
 ---
 
-## 5.12 NickName Validation Scope
+## 5.12 Nick Validation Scope
 
-The NickName validation rule applies to:
+The Nick validation rule applies to:
 
-- Citizen creation with NickName,
-- `CreateNickName`,
+- initial Citizen registration with `NickName`,
+- `CreateNick`,
 - `CreateLink`,
 - `DeleteLink`,
 - `SendTransactionToNick`,
 - `SendRawTransactionToNick`.
 
-`DeleteNickName` acts on the Citizen’s current NickName and therefore does not require a NickName input.
+`DeleteNick` acts on the Citizen’s current Nick and therefore does not require a NickName input.
 
 ---
 
@@ -717,7 +762,7 @@ CreateReferrer
 
 ## 7.3 CreateReferrer
 
-`CreateReferrer` is allowed only if the Citizen currently has no Referrer.
+`CreateReferrer` is allowed only if the Citizen currently has no Referrer. Because it is an on-chain Citizen runtime transaction, it consumes Gas Fee.
 
 | Current State | Operation Result |
 |---|---|
@@ -737,7 +782,7 @@ Validation:
 
 ## 7.4 DeleteReferrer
 
-`DeleteReferrer` is allowed only if a Referrer currently exists.
+`DeleteReferrer` is allowed only if a Referrer currently exists. Because it is an on-chain Citizen runtime transaction, it consumes Gas Fee.
 
 | Current State | Operation Result |
 |---|---|
@@ -771,12 +816,12 @@ NO_PARENT  --DeleteReferrer--> reject
 
 ## 8.1 Meaning
 
-A `Link` is a directional Citizen relationship created by target NickName.
+A `Link` is a directional Citizen relationship created by target Nick.
 
 Example:
 
 ```text
-Citizen A links target NickName "target01"
+Citizen A links target Nick "target01"
 ```
 
 If `target01` belongs to Citizen T:
@@ -814,18 +859,20 @@ A links D
 
 ## 8.3 CreateLink
 
+`CreateLink` is an on-chain Citizen runtime transaction and consumes Gas Fee.
+
 Input:
 
 ```text
-target NickName
+target Nick
 ```
 
 Validation:
 
 | Condition | Result |
 |---|---|
-| target NickName empty | Reject |
-| target NickName owner missing | Reject |
+| target Nick empty | Reject |
+| target Nick owner missing | Reject |
 | target is sender | Reject |
 | same target already linked | Reject |
 | sender already has another Link | Allowed |
@@ -834,18 +881,20 @@ Validation:
 
 ## 8.4 DeleteLink
 
+`DeleteLink` is an on-chain Citizen runtime transaction and consumes Gas Fee.
+
 Input:
 
 ```text
-target NickName
+target Nick
 ```
 
 Validation:
 
 | Condition | Result |
 |---|---|
-| target NickName empty | Reject |
-| target NickName owner missing | Reject |
+| target Nick empty | Reject |
+| target Nick owner missing | Reject |
 | Link relation missing | Reject |
 | Link relation exists | Allowed |
 
@@ -884,8 +933,8 @@ A successful Citizen membership operation increases the sender’s Credit by `+1
 
 | Operation | Credit Change |
 |---|---:|
-| `CreateNickName` | `+1` |
-| `DeleteNickName` | `+1` |
+| `CreateNick` | `+1` |
+| `DeleteNick` | `+1` |
 | `CreateReferrer` | `+1` |
 | `DeleteReferrer` | `+1` |
 | `CreateLink` | `+1` |
@@ -899,10 +948,10 @@ RefCode creation does not increase Credit because it is assigned automatically a
 
 | Target | Create | Delete | Change Policy |
 |---|---|---|---|
-| NickName | Initial Citizen creation, or `CreateNickName` when no NickName exists | `DeleteNickName` | `Delete → Create` |
+| NickName | Initial Citizen creation, or `CreateNick` when no NickName exists | `DeleteNick` | `Delete → Create` |
 | RefCode | Automatic at Citizen confirmation | Not allowed | Immutable |
 | Referrer | `CreateReferrer` | `DeleteReferrer` | `Delete → Create` |
-| Link | `CreateLink` by target NickName | `DeleteLink` by target NickName | Multiple Links added/removed individually |
+| Link | `CreateLink` by target Nick | `DeleteLink` by target Nick | Multiple Links added/removed individually |
 
 ---
 
@@ -910,24 +959,24 @@ RefCode creation does not increase Credit because it is assigned automatically a
 
 The Citizen Protocol exposes two externally important transaction surfaces:
 
-1. **direct coin transfer by NickName**, and
-2. **Citizen membership operations** for NickName, Referrer, and Link state.
+1. **direct coin transfer by Nick**, and
+2. **Citizen membership operations** for Nick, Referrer, and Link state.
 
 ---
 
 ## 11.1 Direct Coin Transfer APIs
 
-NickName-based coin transfer is exposed through:
+Nick-based coin transfer is exposed through:
 
 | API | Purpose |
 |---|---|
-| `SendTransactionToNick` | Submit a normal coin transfer using a NickName as the destination |
-| `SendRawTransactionToNick` | Submit a raw/signed transaction using a NickName as the destination |
+| `SendTransactionToNick` | Submit a normal coin transfer using a Nick as the destination |
+| `SendRawTransactionToNick` | Submit a raw/signed transaction using a Nick as the destination |
 
 Both APIs depend on the same protocol behavior:
 
 ```text
-Destination NickName
+Destination Nick
   → resolved Citizen owner address
   → coin transfer recipient
 ```
@@ -951,7 +1000,7 @@ SendRawTransactionToNick(
 )
 ```
 
-These APIs are externally significant because they allow users to transfer coins using a Citizen identity rather than manually copying an address.
+These APIs are externally significant because they allow users to transfer coins using a Citizen Nick rather than manually copying an address.
 
 ---
 
@@ -965,7 +1014,7 @@ The externally meaningful fields are:
 |---|---|
 | `Op` | Operation type |
 | `Domain` | Citizen protocol domain |
-| `Nick` | NickName or Link target NickName, depending on operation |
+| `Nick` | Nick or Link target Nick, depending on operation |
 | `RefCode` | Input RefCode used to create a Referrer relation |
 | `Extra` | Reserved extension field |
 
@@ -975,12 +1024,12 @@ The externally meaningful fields are:
 
 | Operation | `Nick` | `RefCode` | Description |
 |---|---|---|---|
-| `CreateNickName` | NickName to register | unused | Create Citizen NickName |
-| `DeleteNickName` | unused | unused | Delete current Citizen NickName |
+| `CreateNick` | Nick to register | unused | Create Citizen NickName |
+| `DeleteNick` | unused | unused | Delete current Citizen NickName |
 | `CreateReferrer` | unused | input RefCode | Register Referrer |
 | `DeleteReferrer` | unused | unused | Delete current Referrer |
-| `CreateLink` | target NickName | unused | Link target Citizen |
-| `DeleteLink` | target NickName | unused | Remove target Link |
+| `CreateLink` | target Nick | unused | Link target Citizen |
+| `DeleteLink` | target Nick | unused | Remove target Link |
 
 ---
 
@@ -988,8 +1037,8 @@ The externally meaningful fields are:
 
 | Operation | Status |
 |---|---|
-| `CreateNickName` | Supported |
-| `DeleteNickName` | Supported |
+| `CreateNick` | Supported |
+| `DeleteNick` | Supported |
 | `CreateReferrer` | Supported |
 | `DeleteReferrer` | Supported |
 | `CreateLink` | Supported |
@@ -999,7 +1048,7 @@ The following are not Citizen Protocol transaction operations:
 
 | Operation | Status |
 |---|---|
-| `UpdateNickName` | Not supported |
+| `UpdateNick` | Not supported |
 | `CreateRefCode` | Not supported |
 | `UpdateRefCode` | Not supported |
 | `DeleteRefCode` | Not supported |
@@ -1015,7 +1064,7 @@ The query surface should allow clients to inspect:
 | Field Group | Example Observable Values |
 |---|---|
 | Citizen identity | SymID / Citizen address |
-| NickName | Current NickName |
+| Nick | Current Nick |
 | RefCode | RefCode / formatted ownCode |
 | Referrer | Current Referrer address |
 | Links | Citizens linked by the current Citizen |
@@ -1033,7 +1082,7 @@ Representative result shape:
 ```text
 Citizen
   address
-  nickname
+  nick
   refCode
   ownCode
   referrer
@@ -1046,19 +1095,19 @@ Citizen
 
 ---
 
-## 12.2 Query by NickName
+## 12.2 Query by Nick
 
-A client should be able to resolve a valid NickName to its owning Citizen and retrieve the same public Citizen state.
+A client should be able to resolve a valid Nick to its owning Citizen and retrieve the same public Citizen state.
 
 Example:
 
 ```text
-NickName "target01"
+Nick "target01"
   → Citizen T
   → Citizen T public state
 ```
 
-The same NickName resolution logic is also used when a client sends coins through:
+The same Nick resolution logic is also used when a client sends coins through:
 
 - `SendTransactionToNick`
 - `SendRawTransactionToNick`
@@ -1069,7 +1118,7 @@ The same NickName resolution logic is also used when a client sends coins throug
 
 | Target | Empty State | Create | Existing State | Delete |
 |---|---|---|---|---|
-| NickName | `NO_NICK` | `CreateNickName` | `HAS_NICK` | `DeleteNickName` |
+| Nick | `NO_NICK` | `CreateNick` | `HAS_NICK` | `DeleteNick` |
 | Referrer | `NO_PARENT` | `CreateReferrer` | `HAS_PARENT` | `DeleteReferrer` |
 | Link | `NO_LINK_RELATION` | `CreateLink` | `HAS_LINK_RELATION` | `DeleteLink` |
 
@@ -1083,29 +1132,29 @@ RefCode = immutable deterministic code assigned at Citizen confirmation
 
 # 14. Final Protocol Summary
 
-## 14.1 NickName
+## 14.1 Nick
 
-- Core public Citizen identifier.
+- Core public Citizen identifier after initial `NickName` registration.
 - Globally unique Citizen lookup key within the protocol domain.
 - Domain-label-style rule:
-  - 6 to 63 characters
+  - 6 to 32 characters
   - lowercase letters, digits, and internal hyphen only
   - `_`, `.`, spaces, and other symbols rejected
 - Recommended validation regex:
 
 ```regex
-^[a-z0-9](?:[a-z0-9-]{4,61}[a-z0-9])$
+^[a-z0-9](?:[a-z0-9-]{4,30}[a-z0-9])$
 ```
 
-- May be registered during Citizen confirmation.
-- May be created by transaction only if no NickName exists.
+- Initial alias may be registered once through `NickName` during Citizen confirmation.
+- May be created by `CreateNick` transaction only if no Nick exists.
 - Can be used as a direct coin-transfer destination through:
   - `SendTransactionToNick`
   - `SendRawTransactionToNick`
 - Change requires:
 
 ```text
-DeleteNickName → CreateNickName
+DeleteNick → CreateNick
 ```
 
 ---
@@ -1133,7 +1182,7 @@ DeleteReferrer
 
 ## 14.4 Link
 
-- Input is target NickName.
+- Input is target Nick.
 - Public results expose both `links` and `linkedBy`.
 - Not created automatically at Citizen confirmation.
 - Managed only by:
@@ -1162,3 +1211,4 @@ DeleteLink
 | v0.4 | 2026-05-15 | Simplified RefCode presentation by removing implementation-oriented derivation details and substantially expanded NickName as the core Citizen identifier, including uniqueness, domain-label-style validation, normalization, lifecycle, change process, and Link resolution role |
 | v0.5 | 2026-05-15 | Added NickName-based direct coin transfer as a core Citizen Protocol capability, including `SendTransactionToNick`, `SendRawTransactionToNick`, conceptual usage examples, validation scope, and public API significance |
 | v0.6 | 2026-05-15 | Moved NickName policy ahead of RefCode policy and expanded NickName into a user-facing domain-label specification with allowed/prohibited characters, hyphen rules, 6–63 character range, normalization examples, validation regex, and valid/invalid nickname examples |
+| v0.7 | 2026-05-15 | Reduced Nick maximum length to 32 characters, clarified that `NickName` is only the initial Citizen registration term while post-registration operations use `Nick`, renamed lifecycle operations to `CreateNick` and `DeleteNick`, and documented that all post-registration Citizen runtime state changes consume Gas Fee |
