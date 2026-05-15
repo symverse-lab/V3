@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.7  
+> **Status:** Draft v0.8  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -563,14 +563,14 @@ Send coins to a long raw address string
 
 ### 5.10.1 `SendTransactionToNick`
 
-`SendTransactionToNick` is used when a wallet, console, or RPC client submits a normal transaction by Nick.
+`SendTransactionToNick` is used when a wallet, console, or RPC client submits a standard transaction directly to a Nick.
 
-Conceptual example:
+Example A — standard transaction to Nick:
 
 ```text
 SendTransactionToNick(
   from = addrA,
-  toNick = "target01",
+  to = "target01",
   value = 100 SYM
 )
 ```
@@ -595,37 +595,40 @@ to the Citizen who owns Nick "target01".
 
 ### 5.10.2 `SendRawTransactionToNick`
 
-`SendRawTransactionToNick` is used when the sender prepares or signs a transaction externally and submits the raw transaction using a Nick destination.
+`SendRawTransactionToNick` is used when the sender prepares and signs a raw transaction externally.
 
-Conceptual example:
+For this API:
 
 ```text
-SendRawTransactionToNick(
-  rawTransaction = signedRawTx,
-  toNick = "target01"
-)
+the signed raw transaction must already contain its destination `to` field.
 ```
 
-Resolution flow:
+The RPC submission itself carries only the signed raw transaction.
+
+Example B — raw transaction to Nick:
 
 ```text
-"target01"
-  → resolve Nick owner
-  → bind the raw transfer destination to that Citizen address
-  → submit the raw transaction
+signedRawTx contains:
+  to = target Nick destination
+
+SendRawTransactionToNick(
+  rawTransaction = signedRawTx
+)
 ```
 
 Expected result:
 
 ```text
-A signed raw transaction is submitted
-with the transfer destination resolved from Nick "target01".
+The signed raw transaction is submitted,
+and its destination is processed through the Nick-based transfer path.
 ```
 
-The exact RPC parameter layout belongs to the public RPC/API specification, but the Citizen Protocol requirement is clear:
+The exact raw transaction construction belongs to the transaction/API specification.  
+The Citizen Protocol requirement is:
 
 ```text
-Nick must be usable as a direct transfer destination.
+Nick must be usable as a direct transfer destination
+for both standard and raw transaction submission flows.
 ```
 
 ---
@@ -970,33 +973,35 @@ Nick-based coin transfer is exposed through:
 
 | API | Purpose |
 |---|---|
-| `SendTransactionToNick` | Submit a normal coin transfer using a Nick as the destination |
-| `SendRawTransactionToNick` | Submit a raw/signed transaction using a Nick as the destination |
+| `SendTransactionToNick` | Submit a standard coin transfer using a Nick as the destination |
+| `SendRawTransactionToNick` | Submit a signed raw transaction whose destination is handled by the Nick transfer path |
 
-Both APIs depend on the same protocol behavior:
+Both APIs depend on the same Citizen Protocol principle:
 
 ```text
-Destination Nick
+Nick
   → resolved Citizen owner address
   → coin transfer recipient
 ```
 
-### Example A — standard transaction to NickName
+### Example A — standard transaction to Nick
 
 ```text
 SendTransactionToNick(
   from = addrA,
-  toNick = "target01",
+  to = "target01",
   value = 100 SYM
 )
 ```
 
-### Example B — raw transaction to NickName
+### Example B — raw transaction to Nick
 
 ```text
+signedRawTx contains:
+  to = target Nick destination
+
 SendRawTransactionToNick(
-  rawTransaction = signedRawTx,
-  toNick = "target01"
+  rawTransaction = signedRawTx
 )
 ```
 
@@ -1004,36 +1009,112 @@ These APIs are externally significant because they allow users to transfer coins
 
 ---
 
-## 11.2 Citizen Membership Transaction Fields
+## 11.2 Direct Membership Transaction Type
 
-Citizen relationship updates are expressed through Citizen membership transactions.
+Citizen runtime operations such as Nick, Referrer, and Link changes may be submitted as direct transactions.
 
-The externally meaningful fields are:
+When constructing such a transaction directly:
+
+```text
+type = 11
+```
+
+where:
+
+```text
+TxTypeMembership = 11
+```
+
+The transaction input payload carries the Citizen membership operation data.
+
+Conceptual transaction layout:
+
+| Transaction Field | Meaning |
+|---|---|
+| `from` | Sender address |
+| `nonce` | Sender account nonce |
+| `gasPrice` | Gas price |
+| `gas` | Gas limit |
+| `to` | Recipient field as required by the transaction format |
+| `value` | Transfer value, usually zero for pure membership state operations |
+| `input` | Encoded membership payload |
+| `type` | `11` for `TxTypeMembership` |
+
+Because these are on-chain state-changing transactions, they consume Gas Fee.
+
+---
+
+## 11.3 Membership Payload Fields
+
+A Citizen membership transaction carries a payload with the following externally relevant fields:
 
 | Field | Meaning |
 |---|---|
-| `Op` | Operation type |
+| `Op` | Membership operation code |
 | `Domain` | Citizen protocol domain |
-| `Nick` | Nick or Link target Nick, depending on operation |
+| `Nick` | Nick to create, or Link target Nick, depending on operation |
 | `RefCode` | Input RefCode used to create a Referrer relation |
+| `Sponsor` | Reserved by current policy; not used for Link registration |
 | `Extra` | Reserved extension field |
 
 ---
 
-## 11.3 Field usage by operation
+## 11.4 Operation Code Mapping
 
-| Operation | `Nick` | `RefCode` | Description |
-|---|---|---|---|
-| `CreateNick` | Nick to register | unused | Create Citizen NickName |
-| `DeleteNick` | unused | unused | Delete current Citizen NickName |
-| `CreateReferrer` | unused | input RefCode | Register Referrer |
-| `DeleteReferrer` | unused | unused | Delete current Referrer |
-| `CreateLink` | target Nick | unused | Link target Citizen |
-| `DeleteLink` | target Nick | unused | Remove target Link |
+The public Citizen Protocol terms are:
+
+- `CreateNick`
+- `DeleteNick`
+- `CreateReferrer`
+- `DeleteReferrer`
+- `CreateLink`
+- `DeleteLink`
+
+The currently referenced operation values are:
+
+| Public Protocol Term | Current Operation Constant Reference | `Op` Value |
+|---|---|---:|
+| `CreateNick` | `MembershipOpCreateNickName` | `1` |
+| `DeleteNick` | `MembershipOpDeleteNickName` | `2` |
+| `CreateReferrer` | `MembershipOpCreateReferrer` | `11` |
+| `DeleteReferrer` | `MembershipOpDeleteReferrer` | `12` |
+| `CreateLink` | `MembershipOpCreateSponsor` | `21` |
+| `DeleteLink` | `MembershipOpDeleteSponsor` | `22` |
+
+The public protocol terminology uses:
+
+```text
+Nick
+Link
+```
+
+even where some current implementation constant names still contain:
+
+```text
+NickName
+Sponsor
+```
+
+This mapping is provided to make direct transaction construction unambiguous.
 
 ---
 
-## 11.4 Supported operation set
+## 11.5 Field Usage by Operation
+
+| Public Operation | `Nick` | `RefCode` | `Sponsor` | Description |
+|---|---|---|---|---|
+| `CreateNick` | Nick to register | unused | unused | Create current Citizen Nick |
+| `DeleteNick` | unused | unused | unused | Delete current Citizen Nick |
+| `CreateReferrer` | unused | input RefCode | unused | Register Referrer |
+| `DeleteReferrer` | unused | unused | unused | Delete current Referrer |
+| `CreateLink` | target Nick | unused | unused | Link target Citizen |
+| `DeleteLink` | target Nick | unused | unused | Remove target Link |
+
+---
+
+## 11.6 Supported and Unsupported Operation Set
+
+### Supported
 
 | Operation | Status |
 |---|---|
@@ -1044,7 +1125,7 @@ The externally meaningful fields are:
 | `CreateLink` | Supported |
 | `DeleteLink` | Supported |
 
-The following are not Citizen Protocol transaction operations:
+### Not supported
 
 | Operation | Status |
 |---|---|
@@ -1212,3 +1293,4 @@ DeleteLink
 | v0.5 | 2026-05-15 | Added NickName-based direct coin transfer as a core Citizen Protocol capability, including `SendTransactionToNick`, `SendRawTransactionToNick`, conceptual usage examples, validation scope, and public API significance |
 | v0.6 | 2026-05-15 | Moved NickName policy ahead of RefCode policy and expanded NickName into a user-facing domain-label specification with allowed/prohibited characters, hyphen rules, 6–63 character range, normalization examples, validation regex, and valid/invalid nickname examples |
 | v0.7 | 2026-05-15 | Reduced Nick maximum length to 32 characters, clarified that `NickName` is only the initial Citizen registration term while post-registration operations use `Nick`, renamed lifecycle operations to `CreateNick` and `DeleteNick`, and documented that all post-registration Citizen runtime state changes consume Gas Fee |
+| v0.8 | 2026-05-15 | Corrected Nick transfer API examples, clarified that `SendRawTransactionToNick` receives only a signed raw transaction whose `to` destination is already present, and added direct membership transaction construction guidance for `type = 11`, payload fields, operation-code mapping, and current code-name compatibility references |
