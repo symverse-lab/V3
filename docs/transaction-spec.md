@@ -1,239 +1,705 @@
 # SymVerse V3 Transaction Specification
 
 > **Status:** Draft v0.1  
-> **Date:** 2026-05-14  
-> **Scope:** Baseline transaction structure, authorization fields, and PQC-compatible signing model
+> **Date:** 2026-05-15  
+> **Document Role:** Baseline transaction specification for SymVerse transaction fields, signing flow, transaction types, and deposit policy  
+> **Source Basis:** Existing SymVerse Transaction documentation
 
 ---
 
-# 1. Purpose
+# 1. Overview
 
-This document defines the initial SymVerse V3 transaction specification direction.
+The SymVerse transaction model defines how value transfer, smart contract execution, SymVerse Contract Template execution, and deposit operations are represented and submitted to the blockchain.
 
-It focuses on:
+This document summarizes the existing SymVerse transaction baseline:
 
-- Transaction domain separation
-- Legacy and PQC authorization coexistence
-- Signature payload placement
-- Membership transaction relevance
-- Future alignment with CAD
+- General transaction
+- Smart contract creation and call
+- SCT transaction
+- Deposit transaction
+- Common transaction fields
+- Gas calculation
+- Signing process
+- Deposit policy
+
+The transaction type determines the processing path.
+
+| Transaction Type | Meaning |
+|---:|---|
+| `0` | General transaction |
+| `1` | SCT transaction |
+| `2` | Deposit transaction |
+
+If `type` is omitted, the transaction is treated as a general transaction by default.
 
 ---
 
-# 2. Design Goals
+# 2. Types of Transaction
 
-A V3 transaction model SHOULD provide:
+## 2.1 General Transaction
 
-1. Support for existing transaction behavior where required
-2. Extension points for PQC signature authorization
-3. Deterministic validation across nodes
-4. Clean separation between transaction content and authorization witness
-5. Compatibility with CAD-based authorization commitments
+General transactions include:
+
+1. **Remit transaction**
+   - transfers value from one account to another
+
+2. **Smart contract transaction**
+   - creates a smart contract when `to` is empty
+   - calls a smart contract when `to` is a contract address
 
 ---
 
-# 3. Transaction Families
+## 2.2 SCT Transaction
 
-V3 documentation recognizes several transaction categories:
+SCT transactions are used for:
 
-| Family | Purpose |
+```text
+SymVerse Contract Template operations
+```
+
+They provide a structured transaction path for SCT creation and SCT method execution.
+
+---
+
+## 2.3 Deposit Transaction
+
+Deposit transactions are used for:
+
+1. deposit creation
+2. deposit restoration
+
+The deposit transaction type is:
+
+```text
+type = 2
+```
+
+---
+
+# 3. Transaction Data
+
+## 3.1 Common Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `from` | address | Sender address |
+| `nonce` | integer | Number of transactions published by the account |
+| `gasPrice` | integer | Gas price per gas unit |
+| `gas` | integer | Gas amount for transaction execution |
+| `to` | address or nil | Receiver address, contract address, or nil |
+| `value` | integer | Amount transferred or deposit amount |
+| `input` | bytes | RLP-encoded data for contract or SCT execution |
+| `type` | integer | Transaction type |
+| `workNodes` | address array | Work node list that relays the transaction |
+| `extraData` | bytes | Additional transaction data |
+
+---
+
+## 3.2 Address Semantics
+
+The transaction address is fundamentally a SymVerse account identifier.
+
+```text
+address = SymID-based account address
+```
+
+---
+
+## 3.3 Type Field
+
+The `type` field selects the transaction usage.
+
+| Type | Meaning |
+|---:|---|
+| `0` | General transaction |
+| `1` | SCT transaction |
+| `2` | Deposit transaction |
+
+If `type` is not specified, it defaults to:
+
+```text
+type = 0
+```
+
+---
+
+## 3.4 Defaulting Behavior
+
+The following defaulting behavior applies when transaction fields are not explicitly supplied:
+
+| Field | Behavior |
 |---|---|
-| Value transfer | Standard balance movement |
-| Citizen/account creation | Account or citizen registration flow |
-| Membership transaction | Nickname, Referrer, Link operations |
-| Future PQC-specific flow | Scheme-specific authorization or migration actions |
+| `nonce` | Automatically incremented from the latest account state |
+| `type` | Defaults to general transaction |
+| `gas` | Default value may be used |
+| `gasPrice` | Default value may be used |
+| `value` | Default value may be used |
+| `workNodes` | May be set from node configuration when omitted |
 
 ---
 
-# 4. Transaction Content
+## 3.5 WorkNodes
 
-A transaction typically includes:
+`workNodes` should be included before signing.
 
-- Sender
-- Recipient
-- Nonce
-- Value
-- Gas-related parameters
-- Input/data payload
-- Transaction type
-- Chain/domain constraints
-- Signature or witness fields
+The existing transaction baseline expects:
 
-The exact serialization order MUST be fixed by implementation and documented when finalized.
-
----
-
-# 5. Authorization Separation
-
-The specification SHOULD conceptually separate:
-
-## 5.1 Core Transaction Body
-
-The body contains the state-changing intent:
-
-- From
-- To
-- Value
-- Nonce
-- Gas
-- Type
-- Data
-
-## 5.2 Authorization Metadata
-
-Authorization metadata selects or constrains validation:
-
-- Signature scheme identifier
-- Algorithm code, where applicable
-- Account authorization mode
-
-## 5.3 Witness Payload
-
-Witness data contains the signature material or proof bytes required to authorize the transaction.
-
----
-
-# 6. Legacy Signature Fields
-
-A legacy transaction path may retain fields such as:
-
-```go
-V *big.Int
-R *big.Int
-S *big.Int
+```text
+workNodes count == 1
 ```
 
-These preserve compatibility with existing ECDSA-style transaction authorization.
+If omitted, the node may populate it from its default SymBase configuration.
 
 ---
 
-# 7. PQC Signature Extension
+# 4. Gas
 
-A PQC-capable transaction may include a dedicated PQC signature byte field:
+## 4.1 Gas Price
 
-```go
-PQSig []byte
+The fixed `gasPrice` value described in the baseline documentation is:
+
+```text
+100 GHug
 ```
 
-The transaction structure currently tracked by the V3 documentation follows this conceptual shape:
+hexadecimal representation:
 
-```go
-type Transaction struct {
-    data txdata
-}
-
-type txdata struct {
-    // Existing transaction fields omitted
-
-    // Legacy signature fields
-    V *big.Int
-    R *big.Int
-    S *big.Int
-
-    // PQC signature field
-    PQSig []byte
-}
+```text
+0x174876e800
 ```
 
 ---
 
-# 8. Signing Input
+## 4.2 Gas Formula
 
-The signing input MUST be deterministic.
-
-A dedicated revision SHOULD specify:
-
-- Which fields are included
-- Which fields are excluded
-- Whether signature fields are blanked during hash derivation
-- How transaction type contributes to signing input
-- Domain separation rules
+```text
+gas =
+    base_gas
+    + (number of non-zero bytes) × 680
+    + (number of zero bytes) × 40
+    + contract_operation_gas
+```
 
 ---
 
-# 9. Verification Model
+## 4.3 Base Gas
 
-Verification SHOULD proceed according to the sender account's authorization mode.
+| Transaction Situation | Base Gas |
+|---|---:|
+| Smart contract or SCT creation where `to` is nil | `8,000,000` |
+| Other cases | `49,000` |
 
-At a high level:
+Hexadecimal forms:
 
-1. Decode transaction
-2. Identify sender/account authorization policy
-3. Select verification method
-4. Reconstruct signing input
-5. Verify legacy or PQC witness
-6. Apply transaction if valid
-
----
-
-# 10. Membership Transaction Consideration
-
-Membership transactions are ordinary consensus-visible transactions with membership-specific semantics.
-
-Potential membership actions include:
-
-- Nickname-related operations
-- Referrer assignment
-- Link registration
-
-The exact `TxTypeMembership` payload schema SHOULD be documented in a dedicated membership/API document as it stabilizes.
+| Value | Hex |
+|---:|---|
+| `8,000,000` | `0x7a1200` |
+| `49,000` | `0xbf68` |
 
 ---
 
-# 11. CAD Alignment
+## 4.4 Contract Operation Gas
 
-Transaction design SHOULD remain compatible with CAD.
+`contract_operation_gas` is charged for:
 
-CAD-related transaction questions include:
+- smart contract creation,
+- smart contract execution,
+- SCT creation,
+- SCT execution.
 
-- What transaction content contributes to authorization digest?
-- Is witness material excluded from transaction commitment?
-- How is CAD tied to block-level roots?
-- What equivalent witness scenarios preserve digest invariance?
+For non-contract transactions:
 
-These are specified conceptually in `cad-spec.md`.
-
----
-
-# 12. Validation Requirements
-
-A valid V3 transaction SHOULD satisfy:
-
-- Correct transaction type encoding
-- Correct nonce rule
-- Sufficient balance / fee requirements, where applicable
-- Correct sender authorization
-- Valid signature or witness field
-- Valid membership payload, if membership type
-- Deterministic state transition behavior
+```text
+contract_operation_gas = 0
+```
 
 ---
 
-# 13. Compatibility Notes
+# 5. Signing Process
 
-The specification SHOULD explicitly track:
+## 5.1 Signing Flow
 
-- Legacy sender behavior
-- Legacy receiver behavior
-- ECDSA and PQC account interoperability
-- RPC submission format expectations
-- Raw transaction test matrices
+The transaction signing process follows this sequence.
 
----
+```text
+Step 1. Tx = tx_data + {chain_id, "", ""}
+Step 2. encoded_Tx = RLP_encode(Tx)
+Step 3. Tx_hash = SHA3(encoded_Tx)
+Step 4. V, R, S = SIGN(Tx_hash)
+Step 5. signed_Tx = (tx_data, V, R, S)
+Step 6. RLP_encode(signed_Tx)
+Step 7. Send transaction message
+```
 
-# 14. Open Items
-
-1. Final transaction RLP layout
-2. Final typed transaction versioning, if any
-3. Final hash/signing algorithm input definition
-4. Per-algorithm signature field requirements
-5. Mixed ECDSA/PQC sender-receiver matrices
-6. Membership payload canonical schema
+Step 6 is required for raw transaction submission.
 
 ---
 
-# 15. Revision History
+## 5.2 Signing Input Order
+
+The pre-signing transaction input is ordered as:
+
+```text
+[
+  from,
+  nonce,
+  gasPrice,
+  gas,
+  to,
+  value,
+  input,
+  type,
+  workNodes,
+  extraData,
+  chain_id,
+  "",
+  ""
+]
+```
+
+The ordering MUST be preserved for signature compatibility.
+
+---
+
+## 5.3 Hash and Signature Algorithm
+
+The baseline transaction signing process uses:
+
+| Stage | Algorithm |
+|---|---|
+| Transaction hash | `SHA3-256` |
+| Signature | `ECDSA` |
+
+---
+
+## 5.4 Signature Values
+
+The ECDSA signature fields are:
+
+| Field | Meaning |
+|---|---|
+| `V` | Recovery identifier |
+| `R` | Lower 32-byte signature component |
+| `S` | Upper 32-byte signature component |
+
+`V` is expected to be:
+
+```text
+0 or 1
+```
+
+---
+
+## 5.5 `sendTransaction` and `sendRawTransaction`
+
+| Method | Field Requirements |
+|---|---|
+| `sendTransaction` | Missing data fields may be filled with defaults |
+| `sendRawTransaction` | All fields must be explicitly present, including default-value fields |
+
+For raw transactions:
+
+- empty byte arrays such as `input` and `extraData` should be represented as empty arrays where required,
+- all signing and transaction fields must already be resolved before submission.
+
+---
+
+## 5.6 Chain ID
+
+| Network | Chain ID |
+|---|---:|
+| Mainnet | `1` |
+| Testnet | `2` |
+
+---
+
+# 6. Type `0` — General Transaction
+
+## 6.1 Meaning
+
+When:
+
+```text
+type = 0
+```
+
+the transaction is a general transaction.
+
+If `type` is omitted, the transaction is processed as:
+
+```text
+type = 0
+```
+
+---
+
+## 6.2 General Transaction Modes
+
+| Condition | Result |
+|---|---|
+| `to` is nil | Smart contract creation |
+| `to` is a normal account address | Remit transaction |
+| `to` is a contract address | Contract call |
+
+---
+
+## 6.3 Remit Transaction Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `from` | address | Sender address |
+| `nonce` | integer | Sender transaction count |
+| `gasPrice` | integer | Gas price per unit |
+| `gas` | integer | Gas limit |
+| `to` | address | Receiver address |
+| `value` | integer | Amount transferred |
+| `input` | bytes | RLP-encoded data |
+| `type` | integer | `0` for general transaction |
+| `workNodes` | address array | Relay work node list |
+| `extraData` | bytes | Additional data |
+
+---
+
+## 6.4 Contract Transaction Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `from` | address | Sender address |
+| `nonce` | integer | Sender transaction count |
+| `gasPrice` | integer | Gas price per unit |
+| `gas` | integer | Gas limit |
+| `to` | address or nil | Contract address or nil |
+| `value` | integer | Amount transferred |
+| `input` | bytes | Contract bytecode or call data |
+| `type` | integer | `0` for general transaction |
+| `workNodes` | address array | Relay work node list |
+| `extraData` | bytes | Additional data |
+
+---
+
+## 6.5 Input Requirement
+
+`input` is required for:
+
+- smart contract creation,
+- smart contract call.
+
+For contract calls:
+
+```text
+to = contract address
+```
+
+---
+
+## 6.6 Examples
+
+### 6.6.1 Remit Transaction
+
+```javascript
+sym.sendTransaction({
+  from: "0x00021000000000010002",
+  to: "0x00021000000000070002",
+  workNodes: ["0x00021000000000010002"],
+  value: web3.toHug(100, "sym")
+})
+```
+
+---
+
+### 6.6.2 Contract Creation
+
+```javascript
+sym.sendTransaction({
+  from: "0x00021000000000010002",
+  workNodes: ["0x00021000000000010002"],
+  input: "0xf8418080f83d9a30783533373936643736363537323733363534333666363936658830783533353934648b39313834653732613030308c307830303030303030303031",
+  gas: 9000000
+})
+```
+
+---
+
+### 6.6.3 Contract Call
+
+```javascript
+sym.sendTransaction({
+  from: "0x00021000000000010002",
+  to: "0x0CED1024EEd02B234df2",
+  workNodes: ["0x00021000000000010002"],
+  input: "0xf8418080f83d9a30783533373936643736363537323733363534333666363936658830783533353934648b39313834653732613030308c307830303030303030303031",
+  gas: 150000
+})
+```
+
+---
+
+### 6.6.4 Raw Transaction
+
+```javascript
+sym.sendRawTransaction(
+  "0xf8738a0000000000000000000901850430e2340083015f908a00000000000000000009808002cb8a0000000000000000000901a068c19c97383288faa6373c8b058ed386753c767a3e4976937b2afca1515df875a0142de5cf2687167da8d13f51a4767536ea1473b6d46f76edfa644b04aa428901"
+)
+```
+
+---
+
+### 6.6.5 Balance Check
+
+```javascript
+sym.getBalance("0x00021000000000010002")
+```
+
+---
+
+# 7. Type `1` — SCT Transaction
+
+## 7.1 Meaning
+
+When:
+
+```text
+type = 1
+```
+
+the transaction is an SCT transaction.
+
+---
+
+## 7.2 SCT Creation and SCT Call
+
+| Condition | Result |
+|---|---|
+| `to` is nil | SCT creation |
+| `to` is a contract address | SCT call |
+
+---
+
+## 7.3 SCT Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `from` | address | Sender address |
+| `nonce` | integer | Sender transaction count |
+| `gasPrice` | integer | Gas price per unit |
+| `gas` | integer | Gas limit |
+| `to` | address or nil | SCT contract address or nil |
+| `value` | integer | Not used |
+| `input` | bytes | RLP-encoded SCT data |
+| `type` | integer | `1` for SCT transaction |
+| `workNodes` | address array | Relay work node list |
+| `extraData` | bytes | Additional data |
+
+---
+
+## 7.4 SCT Input Format
+
+The SCT input format is:
+
+```text
+[
+  Type,
+  Method,
+  Parameter
+]
+```
+
+where:
+
+| Element | Meaning |
+|---|---|
+| `Type` | SCT category such as SCT20, SCT21, SCT30, SCT40 |
+| `Method` | Method within the SCT type |
+| `Parameter` | Method parameters |
+
+The SCT data is RLP-encoded before being placed in `input`.
+
+```text
+input = RLP_encode([Type, Method, Parameter])
+```
+
+---
+
+# 8. Type `2` — Deposit Transaction
+
+## 8.1 Meaning
+
+When:
+
+```text
+type = 2
+```
+
+the transaction is a Deposit transaction.
+
+---
+
+## 8.2 Deposit Set and Deposit Restoration
+
+| Condition | Result |
+|---|---|
+| `to` is nil | Deposit set |
+| `to` is present | Deposit restoration |
+
+---
+
+## 8.3 Deposit Transaction Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `from` | address | Sender address |
+| `nonce` | integer | Sender transaction count |
+| `gasPrice` | integer | Gas price per unit |
+| `gas` | integer | Gas limit |
+| `to` | address or nil | Deposit owner address or nil |
+| `value` | integer | Deposit amount |
+| `input` | bytes | Not used |
+| `type` | integer | `2` for Deposit transaction |
+| `workNodes` | address array | Relay work node list |
+| `extraData` | bytes | Additional data |
+
+---
+
+## 8.4 Deposit Set
+
+In a deposit set transaction:
+
+```text
+to = nil
+```
+
+The transaction value becomes the deposited amount.
+
+---
+
+## 8.5 Deposit Restoration
+
+In a deposit restoration transaction:
+
+```text
+from == to
+```
+
+The deposit balance is restored to the account balance, subject to protocol restrictions.
+
+---
+
+## 8.6 Examples
+
+### 8.6.1 Deposit Set
+
+```javascript
+sym.sendTransaction({
+  from: "0x0002A000000000010002",
+  type: "0x2",
+  value: web3.toHug(20, "sym")
+})
+```
+
+Optional convenience method:
+
+```javascript
+sym.setDeposit(
+  "0x0002A000000000010002",
+  web3.toHug(20, "sym")
+)
+```
+
+---
+
+### 8.6.2 Deposit Restoration
+
+```javascript
+sym.sendTransaction({
+  from: "0x0002A000000000010002",
+  to: "0x0002A000000000010002",
+  type: "0x2"
+})
+```
+
+Optional convenience method:
+
+```javascript
+sym.restoreDeposit(
+  "0x0002A000000000010002"
+)
+```
+
+---
+
+### 8.6.3 Raw Deposit Transaction
+
+```javascript
+sym.sendRawTransaction(
+  "0xf8758a0000000000000000000901850430e2340083015f90808901158e460913d00000838207d002cb8a0000000000000000000980a0dceb7d07d0ba181f8d918a2b61cf9e55f8cac1b19dc94729f56dd7210e0a4b9aa0511c581b649ce6748586f176be60042b6b020fbc22615c5248c14ef54c97fc05"
+)
+```
+
+---
+
+### 8.6.4 Deposit Check
+
+```javascript
+sym.getDeposit("0x0002A000000000010002")
+```
+
+---
+
+# 9. Deposit Policy
+
+## 9.1 Deposit Set Policy
+
+A user may set a deposit for their own account at any time.
+
+When a deposit set transaction succeeds:
+
+- the balance is deducted,
+- the amount is converted into deposit state.
+
+A deposit set transaction may be submitted repeatedly if the balance is sufficient.
+
+---
+
+## 9.2 Deposit Restoration Policy
+
+A user may restore a deposit for their own account at any time, subject to restoration restrictions.
+
+When a deposit restoration transaction succeeds:
+
+- the deposit is cleared,
+- the restored value returns to the account balance.
+
+---
+
+## 9.3 Restrictions on Deposit Restoration
+
+Deposit restoration fails when the account is actively serving in restricted protocol roles.
+
+Restrictions include:
+
+- the account acts as an active Warrant node,
+- the account role is CA,
+- the account role is Oraclizer.
+
+---
+
+# 10. V3 Extension Note
+
+This specification records the existing baseline SymVerse transaction model.
+
+V3-related extensions such as:
+
+- CAD transaction structure,
+- Citizen Protocol transaction type,
+- PQC signature-bearing transaction variants,
+- CADFork-era authorization flow,
+
+should be specified in later dedicated revisions or companion documents so that the original baseline model remains clear.
+
+---
+
+# 11. Revision History
 
 | Version | Date | Notes |
 |---|---|---|
-| v0.1 | 2026-05-14 | Initial transaction specification draft |
+| v0.1 | 2026-05-15 | Initial baseline transaction specification drafted from the existing SymVerse Transaction documentation |
