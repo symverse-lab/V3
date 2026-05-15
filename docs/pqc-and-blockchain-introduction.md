@@ -353,7 +353,7 @@ Ethereum-style recoverable ECDSA signature = 65 bytes
 | Item | Size | Notes |
 |---|---:|---|
 | **Private key** | 32 bytes | 256-bit scalar |
-| **Public key, raw form** | 64 bytes | `x || y`, as used in the Ethereum Yellow Paper representation |
+| **Public key, raw form** | 64 bytes | 32-byte x-coordinate + 32-byte y-coordinate |
 | **Public key, SEC1 compressed encoding** | 33 bytes | 1-byte prefix + 32-byte x-coordinate |
 | **Public key, SEC1 uncompressed encoding** | 65 bytes | 1-byte prefix + 32-byte x-coordinate + 32-byte y-coordinate |
 | **Signature, raw `(r,s)` pair** | 64 bytes | Two 32-byte scalar values |
@@ -974,3 +974,4 @@ For Falcon, the section is intentionally labeled as **Falcon / FN-DSA** because 
 | v0.8 | 2026-05-15 | Expanded the transition rationale with ECDLP, Shor’s algorithm, Quantum Fourier Transform, Ethereum recoverable signatures, public-key exposure, and linked risk analyses from Ethereum.org, Deloitte, Tiger Research, and Project Eleven |
 | v0.9 | 2026-05-15 | Added Google Quantum AI / Ethereum Foundation / Stanford / UC Berkeley whitepaper discussion, updated secp256k1 resource estimates, 20-fold physical-qubit reduction framing, zero-knowledge-proof disclosure note, and fast-clock on-spend attack implications |
 | v0.10 | 2026-05-15 | Condensed the Google Quantum AI discussion into a general-reader summary, kept only the most relevant resource estimates, and reframed the blockchain implication around public-key exposure and early migration |
+| v0.11 | 2026-05-15 | Replaced the technical `x || y` raw-public-key notation with a reader-friendly explanation: 32-byte x-coordinate + 32-byte y-coordinate |
