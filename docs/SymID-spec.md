@@ -1,6 +1,6 @@
 # SymVerse V3 SymID Specification
 
-> **Status:** Draft v0.8  
+> **Status:** Draft v0.9  
 > **Date:** 2026-05-15  
 > **Document Role:** Public specification for the V3 SymID account identifier in the quantum-resistant SymVerse architecture
 
@@ -434,16 +434,45 @@ The SymID account identifier and the PQC authorization metadata together form th
 
 ---
 
-## 6.4 Algorithm Examples
+## 6.4 ECDSA and ML-DSA Follow the Same SymID Rule
 
-| Account Family | Example Algorithm Code | Authorization Material |
-|---|---:|---|
-| ECDSA | `0x0000` | ECDSA public-key context |
-| ML-DSA-44 | `0x0044` | ML-DSA-44 public key |
-| ML-DSA-65 | `0x0065` | ML-DSA-65 public key |
-| ML-DSA-87 | `0x0087` | ML-DSA-87 public key |
+SymID composition does not depend on whether the account uses:
 
-SymVerse plans to recommend **ML-DSA-87** after CADFork because it provides the highest NIST security level among the standardized ML-DSA parameter sets.
+- ECDSA,
+- ML-DSA,
+- or another supported signature scheme.
+
+What matters for SymID creation is that the account has a public key.
+
+Both ECDSA and ML-DSA accounts follow the same SymID composition path:
+
+```text
+PublicKey
+  → SHA3-256(public key)
+  → last 8 bytes
+  → PublicKeyHash component of SymID
+```
+
+Therefore:
+
+```text
+ECDSA public key
+  → SymID composition rule applies
+
+ML-DSA public key
+  → SymID composition rule applies
+```
+
+The public-key format and size differ by algorithm, but the SymID construction principle remains identical:
+
+```text
+Version
+ChainID
+PublicKeyHash (last 8 bytes)
+→ SymID
+```
+
+This ensures that both legacy-compatible and post-quantum accounts can use the same SymID identity framework.
 
 ---
 
@@ -679,3 +708,4 @@ The exact RPC field names are defined in the related API specifications.
 | v0.6 | 2026-05-15 | Clarified that SymID is used as the chain-bound unique account key across account lookup, transaction identification, Citizen registration, and verification flows |
 | v0.7 | 2026-05-15 | Reduced repeated SymID layout descriptions by keeping the canonical component table and hash rule in Section 4, with later sections referring back to that single definition for a more concise specification flow |
 | v0.8 | 2026-05-15 | Added the SymID version policy (`0 = Legacy`, `1 = PQCFork-era SymID`), clarified post-PQCFork Version `1` usage, and added representative Legacy SymID/system-address examples from the earlier SymID documentation |
+| v0.9 | 2026-05-15 | Replaced the algorithm-code example table with a clearer rule: ECDSA and ML-DSA both provide public keys, and both follow the same SymID composition path using the last 8 bytes of `SHA3-256(public key)` |
