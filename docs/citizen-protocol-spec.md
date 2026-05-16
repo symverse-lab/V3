@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.11  
+> **Status:** Draft v0.12  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -1257,53 +1257,70 @@ The query surface should allow clients to inspect:
 | Field Group | Example Observable Values |
 |---|---|
 | Citizen identity | SymID / Citizen address |
-| Nick | Current Nick |
+| Nick | Current Nick and initial NickName |
 | RefCode | RefCode / formatted ownCode |
 | Referrer | Current Referrer address |
-| Links | Citizens linked by the current Citizen |
-| LinkedBy | Citizens that linked the current Citizen |
+| Link relations | Links and LinkedBy views where applicable |
 | Credit | Current Citizen Credit |
+| PQC identity metadata | `qAlgo`, `qAlgoName`, `qKeyPub` |
 
 ---
 
-## 12.1 Query by Citizen identity
+## 12.1 Citizen Query Example by Nick
 
-A client should be able to retrieve the current Citizen state by Citizen identity.
-
-Representative result shape:
-
-```text
-Citizen
-  address
-  nick
-  refCode
-  ownCode
-  referrer
-  linkCount
-  links
-  linkedByCount
-  linkedBy
-  credit
-```
-
----
-
-## 12.2 Query by Nick
-
-A client should be able to resolve a valid Nick to its owning Citizen and retrieve the same public Citizen state.
+A client may query the current public Citizen state by Nick.
 
 Example:
 
-```text
-Nick "target01"
-  → Citizen T
-  → Citizen T public state
+```js
+citizen.getCitizenByNick(nick1, "latest")
 ```
 
-The same Nick resolution logic is also used when a client sends coins through:
+Representative result:
 
-- `fromNick`
-- `toNick`
+```js
+{
+  aKeyPubH: "0xcf9220b7a519a9550852a52bfee8fbb39170ed62",
+  blockNumber: 0,
+  ca: "0x00050000000000010002",
+  citizenIndex: 0,
+  country: "0x0",
+  credit: "0x0",
+  domain: "SYMVERSE",
+  nick: "mldsa444014701",
+  nickName: "mldsa444014701",
+  nonce: 0,
+  ownCode: "0001-2288",
+  qAlgo: "0x44",
+  qAlgoName: "ML-DSA-44",
+  qKeyPub: "0x3594b10a1bcd087b5d1b4d5a84beed85...74b3944b",
+  refCode: "0x3000",
+  referrer: "",
+  role: "0x1",
+  status: "0x1",
+  vFlag: "0x0",
+  writeTime: 1778905514
+}
+```
+
+In this example:
+
+| Field | Meaning |
+|---|---|
+| `nick` | Current runtime Nick |
+| `nickName` | Initial NickName assigned at Citizen confirmation |
+| `ownCode` | User-facing formatted RefCode |
+| `refCode` | Protocol RefCode value |
+| `qAlgo` | PQC algorithm code |
+| `qAlgoName` | Human-readable PQC algorithm name |
+| `qKeyPub` | Registered PQC public key; shortened above for readability |
+| `referrer` | Current Referrer relation, empty when none is set |
+| `credit` | Current Citizen Credit |
+
+This query result shows that a Nick-based public lookup can return both:
+
+- Citizen Protocol runtime state, and
+- the Citizen’s registered cryptographic identity metadata.
 
 ---
 
@@ -1410,3 +1427,4 @@ DeleteLink
 | v0.9 | 2026-05-15 | Rewrote Citizen runtime operation submission as a normative protocol rule: `TxTypeCitizen = 11`, `from == to`, Gas Fee consumption, standard transaction layout, and wrapper-function interpretation for `CreateNick`, `DeleteNick`, `CreateReferrer`, and Link operations |
 | v0.10 | 2026-05-16 | Updated the Citizen runtime operation namespace to the finalized `CitizenOp*` names, aligned remaining relation-oriented payload/table terminology to Link, and aligned Link relation operations to `CitizenOpCreateLink = 21` and `CitizenOpDeleteLink = 22` |
 | v0.11 | 2026-05-16 | Replaced separate `*ToNick` transfer APIs with Nick-aware transaction fields `fromNick` and `toNick`, integrated Nick resolution into existing transaction and signing APIs, clarified address/Nick mutual exclusivity, documented the raw signing flow through `personal_signTransaction`, and added related Nick lookup helper APIs |
+| v0.12 | 2026-05-16 | Simplified the public query section by replacing the abstract query-shape discussion with a concrete `citizen.getCitizenByNick(..., "latest")` example, documenting the returned Citizen and PQC metadata fields, and removing the redundant standalone Query by Nick subsection |
