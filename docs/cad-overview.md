@@ -1,7 +1,9 @@
 # Consensus Authorization Digest (CAD) Overview
 
-> **Status:** Draft v0.2  
+> **Status:** Draft v0.5  
 > **Date:** 2026-05-15  
+> **Reference Paper:** [Consensus Authorization Digest (CAD) Enables Quantum-Resistant Blockchains for Any PQC Signature](https://www.researchsquare.com/article/rs-8890873/v1)  
+> **Publication Status:** Research Square preprint, currently **under review at Nature Communications** through the **In Review** workflow.  
 > **Primary Reference:** *Consensus Authorization Digest (CAD) Enables Quantum-Resistant Blockchains for Any PQC Signature*  
 > **Role:** Visual and reader-friendly overview of the CAD architecture for SymVerse V3
 
@@ -427,3 +429,6 @@ These formal details are specified in:
 |---|---|---|
 | v0.1 | 2026-05-15 | Initial visual overview with figure-first explanation and key results tables |
 | v0.2 | 2026-05-16 | Strengthened the overview around the PQC capacity problem, added a concise CAD architecture diagram, expanded the traditional-vs-CAD comparison, clarified what CAD does and does not claim, and added a security-meaning summary section |
+| v0.3 | 2026-05-16 | Added a direct reference link to the Research Square CAD preprint that underpins this overview |
+| v0.4 | 2026-05-16 | Clarified that the linked Research Square CAD manuscript is a preprint currently marked Under Review and presented through the In Review workflow associated with Nature Portfolio review |
+| v0.5 | 2026-05-16 | Refined the publication-status note to state that the CAD preprint is currently under review at Nature Communications through the In Review workflow |
