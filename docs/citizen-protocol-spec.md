@@ -1,6 +1,6 @@
 # SymVerse V3 Citizen Protocol Specification
 
-> **Status:** Draft v0.10  
+> **Status:** Draft v0.11  
 > **Date:** 2026-05-15  
 > **Document Role:** Public protocol specification for Citizen identity, Citizen referral state, Citizen link relations, and externally visible Citizen operations in SymVerse V3
 
@@ -15,7 +15,7 @@ The protocol covers:
 - Initial Citizen public identity registration through `NickName` at Citizen confirmation
 - Ongoing Citizen public alias operations through `Nick`
 - Nick as a globally unique Citizen lookup key
-- **Direct coin transfer to a Nick**, without requiring the sender to enter a raw blockchain address
+- **Nick-aware coin transfer** through `fromNick` and `toNick`, without requiring users to manually enter raw blockchain addresses
 - Citizen referral codes through `RefCode`
 - Referrer registration through an existing Citizen’s RefCode
 - Link and LinkedBy relations created through Nick resolution
@@ -138,8 +138,8 @@ After that first registration boundary, the protocol terminology should use:
 - `Nick`
 - `CreateNick`
 - `DeleteNick`
-- `SendTransactionToNick`
-- `SendRawTransactionToNick`
+- `fromNick`
+- `toNick`
 
 This distinction keeps CitizenBlock initialization terminology separate from post-registration runtime operations.
 
@@ -244,8 +244,8 @@ instead of manually entering the recipient's raw blockchain address.
 
 That capability is exposed through dedicated transfer APIs such as:
 
-- `SendTransactionToNick`
-- `SendRawTransactionToNick`
+- `fromNick`
+- `toNick`
 
 ---
 
@@ -523,142 +523,33 @@ This explicit two-step process keeps Nick ownership changes clear and auditable.
 
 ---
 
-## 5.10 Direct Coin Transfer to Nick
+## 5.10 Nick-Aware Coin Transfer
 
-A Nick can act as a human-readable transfer destination.
+A Nick can act as a human-readable transaction input while the underlying blockchain transaction remains address-based after resolution.
 
-Instead of requiring a sender to know and enter:
+Instead of requiring a user to manually enter only raw addresses, the transaction argument may use:
 
-```text
-0x... recipient address
-```
+| Field | Purpose |
+|---|---|
+| `fromNick` | Resolves the sender Nick to its owner address |
+| `toNick` | Resolves the recipient Nick to its owner address |
 
-the Citizen Protocol allows the sender to specify:
-
-```text
-recipient Nick
-```
-
-The system resolves:
+The resolution principle is:
 
 ```text
-Nick → Citizen owner address
+Nick
+  → resolved Citizen owner address
+  → normal transaction processing
 ```
 
-and uses that resolved address as the coin transfer recipient.
+The Nick-aware fields are integrated into existing transaction APIs.  
+They do not require separate `*ToNick` RPC methods.
 
-This is a major Citizen Protocol feature because it makes blockchain transfers resemble:
+The detailed transaction/API rules are defined in:
 
 ```text
-Send coins to "target01"
+Section 11.1 Direct Coin Transfer APIs
 ```
-
-rather than:
-
-```text
-Send coins to a long raw address string
-```
-
----
-
-### 5.10.1 `SendTransactionToNick`
-
-`SendTransactionToNick` is the Nick-destination form of ordinary `SendTransaction`.
-
-The key difference is:
-
-```text
-ordinary SendTransaction:
-  to = recipient address
-
-SendTransactionToNick:
-  to = recipient Nick
-```
-
-Example A — standard transaction sent to a Nick:
-
-```text
-SendTransactionToNick(
-  from = addrA,
-  to = "target01",
-  value = 100 SYM
-)
-```
-
-Resolution flow:
-
-```text
-"target01"
-  → resolve Nick owner
-  → recipient Citizen address
-  → submit coin transfer
-```
-
-Expected result:
-
-```text
-Citizen A sends 100 SYM
-to the Citizen who owns Nick "target01".
-```
-
----
-
-### 5.10.2 `SendRawTransactionToNick`
-
-`SendRawTransactionToNick` is the Nick-destination form of raw transaction submission.
-
-The key difference is:
-
-```text
-ordinary raw transaction:
-  signedRawTx.to = recipient address
-
-SendRawTransactionToNick:
-  signedRawTx.to = recipient Nick destination
-```
-
-Example B — raw transaction sent to a Nick:
-
-```text
-signedRawTx contains:
-  to = target Nick destination
-
-SendRawTransactionToNick(
-  rawTransaction = signedRawTx
-)
-```
-
-Expected result:
-
-```text
-The signed raw transaction is submitted,
-and its `to` destination is resolved through the Nick transfer path.
-```
-
-The exact raw transaction construction belongs to the transaction/API specification.  
-The Citizen Protocol requirement is:
-
-```text
-Nick must be usable as the `to` destination
-for both standard and raw transaction submission flows.
-```
-
----
-
-### 5.10.3 Why This Is a Distinctive Citizen Protocol Capability
-
-Nick-based transfer is more than a cosmetic convenience.
-
-It means:
-
-1. Nick is a **functional protocol key**, not only a profile label.
-2. A globally unique Nick can be used for:
-   - lookup,
-   - relationship creation,
-   - and direct asset transfer.
-3. Citizen identity becomes directly usable in ordinary economic activity on-chain.
-
-This makes Nick one of the most important externally visible features of the Citizen Protocol.
 
 ---
 
@@ -689,8 +580,8 @@ The Nick validation rule applies to:
 - `CreateNick`,
 - `CreateLink`,
 - `DeleteLink`,
-- `SendTransactionToNick`,
-- `SendRawTransactionToNick`.
+- transaction arguments using `fromNick`,
+- transaction arguments using `toNick`.
 
 `DeleteNick` acts on the Citizen’s current Nick and therefore does not require a NickName input.
 
@@ -981,43 +872,143 @@ The Citizen Protocol exposes two externally important transaction surfaces:
 
 ## 11.1 Direct Coin Transfer APIs
 
-Nick-based coin transfer is exposed through:
+Nick-based coin transfer is integrated into the existing transaction APIs rather than exposed through separate `*ToNick` RPC methods.
+
+The following transaction argument fields are supported:
+
+| Field | Purpose |
+|---|---|
+| `fromNick` | Resolves the sender Nick to its owner address |
+| `toNick` | Resolves the recipient Nick to its owner address |
+
+These fields are mutually exclusive with their address equivalents:
+
+```txt
+from     and fromNick cannot be used together
+to       and toNick   cannot be used together
+```
+
+Both Nick fields follow the same Citizen Protocol principle:
+
+```txt
+Nick
+  → resolved Citizen owner address
+  → normal transaction processing
+```
+
+### Supported APIs
+
+Nick-based address resolution is available through the existing transaction APIs:
+
+| API | Nick support |
+|---|---|
+| `sym_sendTransaction` | Supports `fromNick` and `toNick` |
+| `personal_sendTransaction` | Supports `fromNick` and `toNick` |
+| `personal_signTransaction` | Supports `fromNick` and `toNick` before raw transaction signing |
+
+No separate `SendTransactionToNick` or `SendRawTransactionToNick` API is required.
+
+### Example A — standard transaction sent from an address to a Nick
+
+```js
+sym.sendTransaction({
+  from: addrA,
+  toNick: "target01",
+  value: web3.toHug(100, "sym")
+})
+```
+
+Resolution flow:
+
+```txt
+toNick = "target01"
+  → Citizen Nick owner address
+  → normal coin transfer recipient
+```
+
+### Example B — standard transaction sent from a Nick to a Nick
+
+```js
+sym.sendTransaction({
+  fromNick: "sender01",
+  toNick: "target01",
+  value: web3.toHug(100, "sym")
+})
+```
+
+Resolution flow:
+
+```txt
+fromNick = "sender01"
+  → sender owner address
+
+toNick = "target01"
+  → recipient owner address
+
+resolved addresses
+  → normal transaction signing and submission
+```
+
+### Example C — password-based personal transaction using Nicks
+
+```js
+personal.sendTransaction({
+  fromNick: "sender01",
+  toNick: "target01",
+  value: web3.toHug(100, "sym")
+}, "account-password")
+```
+
+The sender Nick is resolved before nonce handling and account signing, so the transaction is processed exactly as an ordinary address-based personal transaction.
+
+### Example D — raw transaction workflow using Nick-based signing
+
+Raw transaction submission itself remains unchanged:
+
+```txt
+sym_sendRawTransaction(rawTransaction)
+```
+
+A raw transaction cannot resolve or rewrite a Nick after signing, because its destination address is already part of the signed transaction payload.
+
+Instead, Nick resolution is performed during `personal_signTransaction`:
+
+```js
+nonce = sym.getTransactionCountByNick("sender01", "pending")
+
+result = personal.signTransaction({
+  fromNick: "sender01",
+  toNick: "target01",
+  value: web3.toHug(100, "sym"),
+  gas: 49000,
+  gasPrice: sym.gasPrice,
+  nonce: nonce
+}, "account-password")
+
+sym.sendRawTransaction(result.raw)
+```
+
+Resolution flow:
+
+```txt
+fromNick / toNick
+  → concrete sender and recipient addresses
+  → transaction signed as raw bytes
+  → raw bytes submitted unchanged
+```
+
+### Related helper APIs
+
+Nick-aware transaction workflows are supported by the following lookup APIs:
 
 | API | Purpose |
 |---|---|
-| `SendTransactionToNick` | `SendTransaction` variant whose `to` field accepts a Nick instead of an address |
-| `SendRawTransactionToNick` | Raw transaction variant whose signed `to` destination is a Nick rather than an address |
+| `sym_getBalanceByNick` | Returns the balance of the address that owns the Nick |
+| `sym_getTransactionCountByNick` | Returns the account nonce for the Nick owner address |
+| `citizen_getNickOwner` / console alias `citizen.getAddressByNick` | Resolves Nick to owner address |
+| `citizen_getNickByAddress` | Resolves address to Nick |
 
-Both APIs depend on the same Citizen Protocol principle:
-
-```text
-Nick
-  → resolved Citizen owner address
-  → coin transfer recipient
-```
-
-### Example A — standard transaction sent to a Nick
-
-```text
-SendTransactionToNick(
-  from = addrA,
-  to = "target01",
-  value = 100 SYM
-)
-```
-
-### Example B — raw transaction sent to a Nick
-
-```text
-signedRawTx contains:
-  to = target Nick destination
-
-SendRawTransactionToNick(
-  rawTransaction = signedRawTx
-)
-```
-
-These APIs are externally significant because they allow users to transfer coins using a Citizen Nick rather than manually copying an address.
+These APIs allow applications, wallets, and command-line users to work with Citizen Nicks as practical account aliases while preserving the underlying address-based transaction model.
 
 ---
 
@@ -1311,8 +1302,8 @@ Nick "target01"
 
 The same Nick resolution logic is also used when a client sends coins through:
 
-- `SendTransactionToNick`
-- `SendRawTransactionToNick`
+- `fromNick`
+- `toNick`
 
 ---
 
@@ -1350,9 +1341,10 @@ RefCode = immutable deterministic code assigned at Citizen confirmation
 
 - Initial alias may be registered once through `NickName` during Citizen confirmation.
 - May be created by `CreateNick` transaction only if no Nick exists.
-- Can be used as a direct coin-transfer destination through:
-  - `SendTransactionToNick`
-  - `SendRawTransactionToNick`
+- Can be used in Nick-aware transaction fields:
+  - `fromNick`
+  - `toNick`
+- Existing transaction APIs resolve those fields before ordinary address-based processing.
 - Change requires:
 
 ```text
@@ -1417,3 +1409,4 @@ DeleteLink
 | v0.8 | 2026-05-15 | Renamed the public direct Citizen transaction type to `TxTypeCitizen = 11`, reframed post-registration operations as Citizen transactions, and clarified that `SendTransactionToNick` and `SendRawTransactionToNick` are `to`-destination variants where address input is replaced by Nick input |
 | v0.9 | 2026-05-15 | Rewrote Citizen runtime operation submission as a normative protocol rule: `TxTypeCitizen = 11`, `from == to`, Gas Fee consumption, standard transaction layout, and wrapper-function interpretation for `CreateNick`, `DeleteNick`, `CreateReferrer`, and Link operations |
 | v0.10 | 2026-05-16 | Updated the Citizen runtime operation namespace to the finalized `CitizenOp*` names, aligned remaining relation-oriented payload/table terminology to Link, and aligned Link relation operations to `CitizenOpCreateLink = 21` and `CitizenOpDeleteLink = 22` |
+| v0.11 | 2026-05-16 | Replaced separate `*ToNick` transfer APIs with Nick-aware transaction fields `fromNick` and `toNick`, integrated Nick resolution into existing transaction and signing APIs, clarified address/Nick mutual exclusivity, documented the raw signing flow through `personal_signTransaction`, and added related Nick lookup helper APIs |
