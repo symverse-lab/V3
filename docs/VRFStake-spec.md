@@ -1,5 +1,29 @@
 # VRFStake Specification
 
+## Key Operational Rule
+
+The most important operational rule of VRFStake is:
+
+```text
+For block N,
+VRFStake must use the parent hash and parent state of block N-1.
+```
+
+This rule guarantees that proposer selection is:
+
+- **deterministic**, because every node uses the same already-finalized parent block;
+- **stake-aware**, because the deposit amount is read from the same parent state;
+- **independently verifiable**, because every consensus participant can recompute the same expected proposer.
+
+In other words:
+
+```text
+block N proposer selection
+    = function of finalized block N-1 context
+```
+
+This parent-reference rule is the foundation of the entire VRFStake mechanism.
+
 ## 1. Overview
 
 **VRFStake** is the stake-weighted proposer selection rule used by the SymVerse PoN / VoW consensus flow.
@@ -937,11 +961,11 @@ effectiveScore_i = baseScore_i / weight_i
 proposer         = argmin(effectiveScore_i)
 ```
 
-The most important operational rule remains:
+The opening operational rule remains the foundation of the design:
 
 ```text
 For block N,
 VRFStake must use the parent hash and parent state of block N-1.
 ```
 
-This ensures that proposer selection is deterministic, stake-aware, and independently verifiable by every consensus participant.
+All proposer calculations, candidate scoring, and block-primary verification are built on this parent-reference rule.
