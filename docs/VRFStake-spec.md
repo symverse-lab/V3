@@ -2,87 +2,340 @@
 
 ## 1. Overview
 
-This document defines the **VRFStake-based primary selection policy** used in the PoN / VoW consensus flow.
+**VRFStake** is a proposer-selection mechanism used in the SymVerse PoN / VoW consensus flow.
 
-VRFStake does not replace VoW candidate construction. Instead, it determines how the **primary proposer** is selected and moved to the front of an already constructed VoW candidate list.
+Its purpose is to determine the next block primary in a way that is:
 
-The design goals are:
+- **Deterministic**: every node computes the same expected proposer from the same chain state
+- **State-aware**: proposer selection reflects the active warrant membership and stake-related information
+- **Hard to bias in advance**: the selection input includes the previous block hash
+- **Compatible with the existing VoW process**: it does not replace VoW candidate construction, but reorders the already agreed candidate set
+
+In simple terms:
+
+> VRFStake decides **which eligible candidate should be placed first as the expected primary** for a block.
+
+---
+
+## 2. Motivation
+
+Before VRFStake, the primary ordering was based on a simpler hash-derived rearrangement rule.  
+That method was deterministic and lightweight, but it did not directly reflect stake-oriented selection policy.
+
+VRFStake improves this by introducing a proposer calculation that depends on:
+
+1. The target block number
+2. The parent block hash
+3. The active warrant set
+4. Stake-related selection logic
+5. The current epoch context
+
+This allows proposer selection to be aligned with the network’s validator or warrant state while preserving deterministic consensus behavior.
+
+---
+
+## 3. Scope
+
+VRFStake affects **primary selection**, not the entire consensus process.
+
+It does **not**:
+
+- Create the VoW candidate list
+- Replace FE voting
+- Replace block validation
+- Change transaction execution
+- Change block structure by itself
+
+It **does**:
+
+- Compute the expected proposer for a block
+- Reorder the VoW candidate list so that the expected proposer becomes the first candidate
+- Provide a shared deterministic rule for block-primary verification
+- Allow simulators and nodes to verify whether the selected primary matches protocol expectations
+
+---
+
+## 4. Core Idea
+
+For a target block `N`, VRFStake uses the **previous block**, namely block `N-1`, as the entropy and state reference.
 
 ```text
-1. Preserve the existing VoW candidate construction flow.
-2. Select the primary proposer using VRFStake.
-3. Bind VRFStake evaluation to the correct blockNumber / parentHash pair.
-4. Allow legacy fallback during the stabilization phase.
-5. Track and eliminate fallback usage during validation.
+Target block: N
+Reference block: N - 1
+Reference hash: hash of block N - 1
+```
+
+Therefore:
+
+```text
+blockNumber = N
+parentHash  = hash of block N - 1
+```
+
+This rule is essential.
+
+The proposer for block `N` must be calculated from the parent state of block `N`, not from the hash of block `N` itself.
+
+---
+
+## 5. Why the Parent Hash Matters
+
+The parent hash serves as a common, already-finalized input known to all nodes before block `N` is produced.
+
+This has two important properties.
+
+### 5.1 Deterministic Agreement
+
+All honest nodes that have the same chain head use the same:
+
+- block number
+- parent hash
+- parent state
+
+As a result, they compute the same expected proposer.
+
+### 5.2 Reduced Predictability
+
+Because the parent hash changes from block to block, the proposer selection input also changes continuously.
+
+This makes the proposer order less static than a fixed round-robin or identity-based selection scheme.
+
+---
+
+## 6. Selection Inputs
+
+VRFStake proposer computation is based on the following logical inputs.
+
+| Input | Meaning |
+|---|---|
+| `chainID` | Identifies the target network |
+| `blockNumber` | The block whose proposer is being selected |
+| `parentHash` | Hash of the direct parent block |
+| `activeWBNumber` | Active warrant block reference |
+| `epochLength` | Epoch granularity used by the selection policy |
+| active membership / stake state | Eligibility and weighting basis |
+
+These inputs ensure that proposer selection is tied to both:
+
+- **chain context**, and
+- **current consensus membership state**
+
+---
+
+## 7. High-Level Calculation Flow
+
+The protocol-level calculation can be described as follows.
+
+```text
+1. Determine the target block number N.
+2. Read the parent block hash H(N-1).
+3. Load the parent-chain state associated with H(N-1).
+4. Determine the active warrant / membership context.
+5. Derive the VRFStake selection result for block N.
+6. Return the expected proposer address.
+7. Move that proposer to the front of the VoW candidate list, if present.
+```
+
+Conceptually:
+
+```text
+ExpectedProposer(N)
+    = VRFStake(
+        chain context,
+        block number N,
+        parent hash H(N-1),
+        active membership,
+        stake policy,
+        epoch policy
+      )
 ```
 
 ---
 
-## 2. Scope
+## 8. Relationship with VoW
 
-This specification covers:
+VRFStake does not replace VoW candidate generation.
+
+The order of operations is:
 
 ```text
-- VRFStake proposer resolution
-- VoW primary reordering
-- blockNumber / parentHash rules
-- fallback behavior
-- generous-mode interaction
-- simulator validation criteria
-- representative failure cases
+1. VoW constructs the eligible candidate set.
+2. Candidates are sorted into a deterministic baseline order.
+3. VRFStake computes the expected proposer.
+4. If that proposer exists in the candidate set:
+      move it to the front.
+5. The first candidate becomes the expected primary.
 ```
 
-This document does not define the internal VRF proof algorithm, stake weight calculation, or warrant membership encoding itself. Those are treated as implementation dependencies of `ExpectedVRFStakeProposer(...)`.
+### Example
+
+Suppose the candidate list is:
+
+```text
+[A, B, C, D]
+```
+
+If VRFStake selects `C`, the reordered list becomes:
+
+```text
+[C, A, B, D]
+```
+
+In this case:
+
+```text
+Primary = C
+```
 
 ---
 
-## 3. Core Invariant
+## 9. Effect on Block Production
 
-### 3.1 Required blockNumber / parentHash Pairing
+VRFStake influences **who is expected to lead block production** for a given height.
 
-The most important VRFStake invariant is:
+For each target block:
 
-```text
-If blockNumber = N,
-parentHash must be the hash of block N-1.
-```
+- every node calculates the same expected proposer;
+- the VoW candidate order is adjusted consistently;
+- the block primary should match the VRFStake result.
 
-In other words, proposer selection for block `N` must be evaluated using the **parent block hash and parent state**.
-
-### 3.2 Current Block N
-
-When validating or processing an already materialized block `N`:
-
-```go
-blockNumber := block.NumberU64()
-parentHash := block.ParentHash()
-```
-
-### 3.3 Next Block N+1
-
-When computing the expected proposer before creating the next block:
-
-```go
-blockNumber := parent.NumberU64() + 1
-parentHash := parent.Hash()
-```
-
-### 3.4 Invalid Pairing
-
-The following pairing is invalid:
-
-```go
-blockNumber := block.NumberU64()
-parentHash := block.Hash() // invalid
-```
-
-This incorrectly drives the resolver toward a lookup equivalent to:
+This allows the network to verify:
 
 ```text
-GetBlock(block.Hash(), block.NumberU64()-1)
+block.Primary == ExpectedVRFStakeProposer
 ```
 
-and can result in:
+If the values match, the block’s primary selection is consistent with the protocol rule.
+
+---
+
+## 10. Effect on Consensus Safety
+
+VRFStake is designed to preserve the deterministic nature of consensus.
+
+Its safety contribution is based on three rules:
+
+### 10.1 Shared Input Rule
+
+Every node must use the same parent-hash rule:
+
+```text
+For block N, use parent hash of block N-1.
+```
+
+### 10.2 Shared Membership Rule
+
+Every node must evaluate proposer eligibility from the same active membership / warrant state.
+
+### 10.3 Shared Reordering Rule
+
+Once the proposer is computed, the same candidate-reordering rule must be applied by all nodes.
+
+If these conditions hold, all correct nodes derive the same primary order.
+
+---
+
+## 11. Effect on Fairness and Stake-Aware Selection
+
+The traditional fallback order is purely hash-derived over the candidate list.  
+VRFStake adds an explicit **stake-aware proposer selection path**.
+
+This makes it possible to reflect policies such as:
+
+- eligibility derived from active warrant state;
+- epoch-dependent proposer rotation;
+- stake-influenced proposer choice;
+- deterministic weighting logic shared by all nodes.
+
+The exact weight policy may evolve, but the specification requires that:
+
+```text
+The same parent state and the same protocol parameters
+must always produce the same proposer.
+```
+
+---
+
+## 12. Epoch Context
+
+VRFStake may use an epoch length to stabilize or group selection behavior across ranges of block heights.
+
+An epoch can be understood as a fixed block interval:
+
+```text
+epoch = floor(blockNumber / epochLength)
+```
+
+The epoch value may influence:
+
+- selection seed derivation;
+- eligible stake snapshot interpretation;
+- proposer rotation behavior;
+- consistency of stake treatment over a defined period.
+
+The key requirement is that epoch calculation must be deterministic and identical across all nodes.
+
+---
+
+## 13. Fallback Policy
+
+During the stabilization and validation phase, VRFStake failure may fall back to the legacy rearrangement rule.
+
+Fallback exists to prevent temporary proposer-resolution failure from stopping the entire consensus process.
+
+### Fallback may occur when:
+
+- proposer resolution cannot be completed;
+- parent state lookup fails;
+- the expected proposer is not found in the candidate list;
+- the VRFStake subsystem is temporarily unavailable.
+
+### Current policy
+
+```text
+VRFStake success:
+    use VRFStake proposer ordering
+
+VRFStake failure:
+    use legacy hash-based fallback ordering
+```
+
+### Target policy
+
+For final validation and stable operation:
+
+```text
+fallback count should converge to 0
+```
+
+Fallback is therefore a **stabilization mechanism**, not the intended steady-state path.
+
+---
+
+## 14. Correctness Rule for Block Number and Parent Hash
+
+This is the most important operational rule in the specification.
+
+### Correct form
+
+For block `N`:
+
+```text
+blockNumber = N
+parentHash  = hash of block N-1
+```
+
+### Incorrect form
+
+```text
+blockNumber = N
+parentHash  = hash of block N
+```
+
+The incorrect form attempts to use a block’s own hash as though it were its parent reference.  
+This breaks parent lookup and causes proposer calculation failure.
+
+Typical symptom:
 
 ```text
 missing parent for VRFStake primary
@@ -90,694 +343,248 @@ missing parent for VRFStake primary
 
 ---
 
-## 4. Resolver Interface
+## 15. Consensus Lifecycle Impact
 
-VoW does not compute VRFStake directly. Instead, a resolver is injected into VoW.
+VRFStake affects several points in the consensus lifecycle.
 
-```go
-type VRFStakePrimaryResolver func(
-    bNum uint64,
-    parentHash NBytes,
-    candidates SNBytes,
-) (common.Address, error)
+### 15.1 Candidate Preparation
 
-func (v *VoW) SetVRFStakePrimaryResolver(resolver VRFStakePrimaryResolver) {
-    if v == nil {
-        return
-    }
+The candidate population itself is still determined by VoW logic.  
+VRFStake begins only **after** that candidate set exists.
 
-    v.mu.Lock()
-    defer v.mu.Unlock()
+### 15.2 Primary Arrangement
 
-    v.vrfStakePrimaryResolver = resolver
-}
-```
+The expected proposer is moved to the front of the list.
 
-### 4.1 Resolver Contract
+### 15.3 Commit-Time Consistency
 
-For every invocation:
+Committed VoW ordering must remain aligned with the VRFStake result.
 
-```text
-bNum = N
-parentHash = hash of block N-1
-candidates = sorted or sortable VoW candidate set for block N
-```
+### 15.4 Block-Based Re-evaluation
 
-The resolver returns:
+When block-based VoW ordering is refreshed, the same parent-hash rule applies.
 
-```text
-- selected proposer address, or
-- an error if proposer resolution failed
-```
+### 15.5 Simulator Verification
+
+Simulation must verify not merely that blocks are produced, but that they are produced with the **correct protocol-selected primary**.
 
 ---
 
-## 5. ExpectedVRFStakeProposer Contract
+## 16. Validation Requirements
 
-The canonical proposer calculation function is:
+A VRFStake implementation is considered correct only if the following conditions hold.
 
-```go
-func ExpectedVRFStakeProposer(
-    chainID *big.Int,
-    bc *BlockChain,
-    blockNumber uint64,
-    parentHash common.Hash,
-    activeWBNumber uint64,
-    epochLength uint64,
-) (common.Address, error)
-```
+### 16.1 Proposer Calculation
 
-Its core parent lookup is:
+- The proposer is calculated without error.
+- The proposer is not an empty address.
+- The proposer is derived from the correct parent block state.
 
-```go
-parent := bc.GetBlock(parentHash, blockNumber-1)
-```
+### 16.2 Candidate Membership
 
-Therefore, the caller must always preserve the pairing rule:
+- The calculated proposer appears in the VoW candidate list.
+- The candidate list is reordered to place that proposer first.
+
+### 16.3 Block Consistency
+
+- The actual block primary equals the expected VRFStake proposer.
 
 ```text
-blockNumber = N
-parentHash = block(N-1).Hash()
+block.Primary == ExpectedVRFStakeProposer(...)
 ```
 
-### 5.1 Validation for an Existing Block
+### 16.4 Fallback Monitoring
 
-```go
-expected, err := core.ExpectedVRFStakeProposer(
-    chainID,
-    bc,
-    block.NumberU64(),
-    block.ParentHash(),
-    block.ActiveWBNumberU64(),
-    core.DefaultVRFStakeEpochLength,
-)
-```
-
-### 5.2 Prediction for the Next Block
-
-```go
-parent := bc.CurrentBlock()
-blockNumber := parent.NumberU64() + 1
-
-expected, err := core.ExpectedVRFStakeProposer(
-    chainID,
-    bc,
-    blockNumber,
-    parent.Hash(),
-    activeWBNumber,
-    core.DefaultVRFStakeEpochLength,
-)
-```
-
----
-
-## 6. VoW Integration Model
-
-VRFStake is applied after candidate collection and sorting.
-
-### 6.1 Common Reordering Flow
-
-```text
-1. Build the candidate list.
-2. sort.Sort(candidate)
-3. Resolve the expected proposer using VRFStake.
-4. If the proposer exists in the candidate list, move it to the front.
-5. If resolution fails, use the configured fallback path.
-```
-
-### 6.2 Integration Points
-
-The same reordering rule applies to:
-
-```text
-- MakeVoW()
-- CommitVoW()
-- MakeBlockBasedVoW()
-- rearrange()
-```
-
----
-
-## 7. rearrange() Policy
-
-`rearrange()` is the central function responsible for primary positioning.
-
-Recommended implementation:
-
-```go
-func (v *VoW) rearrange(bNum uint64, temp SNBytes, parentHash NBytes) SNBytes {
-    if temp.Len() == 0 {
-        log.Warn("[CONSENSUS] VoW rearrange failed: empty candidates",
-            "section", "CONSENSUS",
-            "bNum", bNum,
-            "agreeB", ponp.AgreeB,
-            "parentHash", parentHash.TerminalString(),
-        )
-        return nil
-    }
-
-    if temp.Len() < ponp.AgreeB {
-        log.Warn("[CONSENSUS] VoW rearrange failed: insufficient candidates",
-            "section", "CONSENSUS",
-            "bNum", bNum,
-            "candidates", temp.Len(),
-            "agreeB", ponp.AgreeB,
-            "parentHash", parentHash.TerminalString(),
-        )
-        return nil
-    }
-
-    sort.Sort(temp)
-
-    if v.vrfStakePrimaryResolver != nil {
-        primary, err := v.vrfStakePrimaryResolver(bNum, parentHash, temp)
-        if err != nil {
-            log.Warn("[CONSENSUS] VoW rearrange VRFStake resolver failed",
-                "section", "CONSENSUS",
-                "bNum", bNum,
-                "parentHash", parentHash.TerminalString(),
-                "candidates", temp.Len(),
-                "err", err,
-            )
-        } else if primary != (common.Address{}) {
-            for i, id := range temp {
-                if common.BytesToAddress(id[:]) == primary {
-                    log.Debug(log.DF_VOW, "[CONSENSUS] VoW rearrange by VRFStake",
-                        "section", "CONSENSUS",
-                        "bNum", bNum,
-                        "primary", primary.Hex(),
-                        "index", i,
-                        "candidates", temp.Len(),
-                    )
-                    return temp.MoveToFront(i)
-                }
-            }
-
-            log.Warn("[CONSENSUS] VoW rearrange VRFStake primary not found",
-                "section", "CONSENSUS",
-                "bNum", bNum,
-                "primary", primary.Hex(),
-                "parentHash", parentHash.TerminalString(),
-                "candidates", temp.Len(),
-            )
-        }
-    }
-
-    source := int(binary.BigEndian.Uint32(parentHash[len(parentHash)-4:]))
-    skip := source % temp.Len()
-
-    log.Debug(log.DF_VOW, "[CONSENSUS] VoW rearrange by fallback",
-        "section", "CONSENSUS",
-        "bNum", bNum,
-        "candidates", temp.Len(),
-        "agreeB", ponp.AgreeB,
-        "skip", skip,
-        "parentHash", parentHash.TerminalString(),
-    )
-
-    return temp.MoveToFront(skip)
-}
-```
-
-### 7.1 Fallback Rule
-
-During the current stabilization phase:
-
-```text
-- VRFStake failure does not immediately stop consensus.
-- The legacy fallback path is allowed.
-- Every fallback occurrence must be counted and reviewed.
-```
-
-Validation target:
+- Fallback occurrence is counted.
+- Stable verification target is:
 
 ```text
 fallback count == 0
 ```
 
-Strict mode may be introduced after the standard VoW / VRFStake path is proven stable.
-
 ---
 
-## 8. MakeVoW() Policy
+## 17. Example Walkthrough
 
-`MakeVoW()` constructs GROUP_B candidates and then delegates primary positioning to `rearrange()`.
+Assume the chain is preparing block `3826`.
 
-### 8.1 Required Behavior
+### Inputs
 
 ```text
-1. Call generous() exactly once, outside the candidate loop.
-2. If allowGenerous=true, set YellowNum=0 and include the node.
-3. If allowGenerous=false, include only non-Yellow nodes.
-4. Treat nil result or nil Front() as failure.
+Target block number: 3826
+Parent block number: 3825
+Parent hash: H(3825)
+Active warrant state: W
+Epoch policy: E
 ```
 
-### 8.2 Reference Implementation
+### Step 1 — Candidate list exists
 
-```go
-func (v *VoW) MakeVoW(bNum uint64, wnodes *list.List, parentHash NBytes) SNBytes {
-    temp := make(SNBytes, 0, ponp.Total)
+```text
+[A, B, C, D]
+```
 
-    allowGenerous := v.generous()
+### Step 2 — VRFStake proposer is computed
 
-    for e := wnodes.Front(); e != nil; e = e.Next() {
-        w := e.Value.(*WNode)
+```text
+Expected proposer = B
+```
 
-        if w.Group != GROUP_B {
-            continue
-        }
+### Step 3 — Candidate list is reordered
 
-        if w.State != CON_ESTABLISHED && w.State != CON_MINE {
-            continue
-        }
+```text
+[B, A, C, D]
+```
 
-        if allowGenerous {
-            w.YellowNum = 0
-            temp = append(temp, w.SymId)
-            continue
-        }
+### Step 4 — Primary expectation
 
-        if !w.Yellow(bNum) {
-            temp = append(temp, w.SymId)
-            continue
-        }
-    }
+```text
+Primary = B
+```
 
-    result := v.rearrange(bNum, temp, parentHash)
-    if result == nil || result.Front() == nil {
-        log.Warn("[CONSENSUS] VoW MakeVoW failed: rearrange failed",
-            "section", "CONSENSUS",
-            "bNum", bNum,
-            "candidates", temp.Len(),
-            "agreeB", ponp.AgreeB,
-            "generous", allowGenerous,
-            "parentHash", parentHash.TerminalString(),
-        )
-        return nil
-    }
+### Step 5 — Block validation
 
-    return result
-}
+The produced block must satisfy:
+
+```text
+block.Primary = B
 ```
 
 ---
 
-## 9. CommitVoW() Policy
+## 18. Operational Observability
 
-`CommitVoW()` commits an agreed VoW result and must not corrupt the active Wlist on rearrange failure.
+A running node should make it possible to distinguish:
 
-### 9.1 Required Behavior
+1. **VRFStake success**
+2. **VRFStake proposer missing from candidates**
+3. **Resolver failure**
+4. **Fallback activation**
+5. **Primary mismatch**
 
-```text
-1. Reject nil vow.
-2. Reject vow.Front()==nil.
-3. Keep the existing Wlist if rearrange() fails.
-4. Update Wlist only after successful rearrangement.
-5. Update lastCommit only after successful commit.
-```
+These observations are important because:
 
-### 9.2 Reference Implementation
-
-```go
-func (v *VoW) CommitVoW(bNum uint64, vow SNBytes, parentHash NBytes) bool {
-    v.mu.Lock()
-    defer v.mu.Unlock()
-
-    if vow == nil || vow.Front() == nil {
-        return false
-    }
-
-    rearranged := v.rearrange(bNum, vow, parentHash)
-    if rearranged == nil || rearranged.Front() == nil {
-        log.Warn("[CONSENSUS] CommitVoW failed: rearrange failed; keeping previous Wlist",
-            "section", "CONSENSUS",
-            "bNum", bNum,
-            "vowLen", vow.Len(),
-            "agreeB", ponp.AgreeB,
-            "parentHash", parentHash.TerminalString(),
-        )
-        return false
-    }
-
-    v.Wlist = rearranged
-
-    now := time.Now()
-    v.IsSync = true
-    v.pBlock = bNum
-    v.lastTime = now
-    v.lastVoW = now
-    v.lastCommit = now
-    v.pTime = now
-
-    return true
-}
-```
+- they reveal whether VRFStake is actually being used;
+- they expose parent-hash misuse;
+- they show whether membership state and candidate state are aligned;
+- they help identify divergence before it becomes a consensus failure.
 
 ---
 
-## 10. MakeBlockBasedVoW() Policy
+## 19. Failure Cases
 
-`MakeBlockBasedVoW()` reorders Wlist after a block becomes available.
+### 19.1 Missing Parent Reference
 
-### 10.1 Required Behavior
-
-```text
-1. parentHash must match the parent of blockNumber.
-2. Keep the existing Wlist if rearrange() fails.
-3. Update Wlist only after successful rearrangement.
-```
-
-### 10.2 Correct Invocation
-
-```go
-bNum := cBlock.NumberU64()
-parentHash := cBlock.ParentHash().Bytes()
-
-ns.ActiveVoW().MakeBlockBasedVoW(bNum, parentHash)
-```
-
-### 10.3 Invalid Invocation
-
-```go
-bNum := cBlock.NumberU64()
-bHash := cBlock.Hash().Bytes()
-
-ns.ActiveVoW().MakeBlockBasedVoW(bNum, bHash) // invalid
-```
-
----
-
-## 11. feVoW() Parent Hash Rule
-
-If `feVoW()` uses:
-
-```go
-bNum := cBlock.NumberU64()
-```
-
-then both suggestion sending and commit must use:
-
-```go
-parentHash := cBlock.ParentHash().Bytes()
-```
-
-### 11.1 Correct Form
-
-```go
-bNum := cBlock.NumberU64()
-parentHash := cBlock.ParentHash().Bytes()
-
-s.sendSuggestion(SO_SUGGEST, bNum, parentHash)
-ok := vow.CommitVoW(bNum, nVoW, parentHash)
-```
-
-### 11.2 Invalid Form
-
-```go
-s.sendSuggestion(SO_SUGGEST, bNum, cBlock.Hash().Bytes()) // invalid
-```
-
----
-
-## 12. generous() Policy
-
-`generous()` is not part of VRFStake itself. It is a Yellow-node recovery policy used during candidate construction.
-
-### 12.1 Semantics
+Cause:
 
 ```text
-If the elapsed time since the last successful main block commit
-exceeds VoWGenerous,
-Yellow-excluded GROUP_B warrant nodes may be reintroduced.
-```
-
-### 12.2 Recommended Implementation
-
-```go
-func (v *VoW) generous() bool {
-    if ponp.VoWGenerous <= 0 {
-        return false
-    }
-
-    diff := time.Since(v.lastCommit).Nanoseconds() / int64(time.Millisecond)
-    if diff > ponp.VoWGenerous {
-        log.Debug(log.DF_VOW, "[CONSENSUS] VoW generous threshold exceeded",
-            "section", "CONSENSUS",
-            "diff", diff,
-            "threshold", ponp.VoWGenerous,
-            "lastCommit", v.lastCommit.Format(time.StampMilli),
-        )
-        return true
-    }
-
-    return false
-}
-```
-
-### 12.3 Required Constraints
-
-```text
-- Do not use lastGenerous.
-- Do not mutate lastCommit inside generous().
-- Do not call generous() from Init().
-- Compute allowGenerous once per MakeVoW() invocation, outside the loop.
-```
-
----
-
-## 13. Simulator Validation Requirements
-
-The simulator must verify more than simple block creation success.
-
-### 13.1 Required Assertions
-
-```text
-1. ExpectedVRFStakeProposer(...) returns without error.
-2. The returned proposer is not the empty address.
-3. The proposer exists in the candidate list.
-4. block.Primary() equals the expected proposer.
-5. fallback count equals 0.
-```
-
-### 13.2 Pre-Creation Expected Proposer Calculation
-
-```go
-parent := env.BC.CurrentBlock()
-blockNumber := genb.Number().Uint64()
-
-expected, err := core.ExpectedVRFStakeProposer(
-    env.Cfg.ChainID,
-    env.BC,
-    blockNumber,
-    parent.Hash(),
-    activeWBNumber,
-    core.DefaultVRFStakeEpochLength,
-)
-```
-
-### 13.3 Post-Creation Block Validation
-
-```go
-block := env.BC.GetBlockByNumber(blockNumber)
-
-expected, err := core.ExpectedVRFStakeProposer(
-    env.Cfg.ChainID,
-    env.BC,
-    block.NumberU64(),
-    block.ParentHash(),
-    block.ActiveWBNumberU64(),
-    core.DefaultVRFStakeEpochLength,
-)
-
-if block.Primary() != expected {
-    return fmt.Errorf("primary mismatch")
-}
-```
-
----
-
-## 14. Expected Logs
-
-### 14.1 Successful VRFStake Reordering
-
-A successful VRFStake application should emit:
-
-```text
-[CONSENSUS] VoW rearrange by VRFStake
+The target block number and the supplied parent hash do not match.
 ```
 
 Example:
 
 ```text
-[CONSENSUS] VoW rearrange by VRFStake section=CONSENSUS bNum=3826 primary=0x0004544c453E372f0002 index=1 candidates=4
-```
-
-### 14.2 Fallback Path
-
-The following logs indicate that VRFStake was not applied and fallback was used:
-
-```text
-[CONSENSUS] VoW rearrange VRFStake resolver failed
-[CONSENSUS] VoW rearrange by fallback
-```
-
-During validation:
-
-```text
-- Keep fallback-related logs at WARN.
-- Lower them to DEBUG only after the fallback path is proven unnecessary in normal operation.
-```
-
----
-
-## 15. Representative Failure Cases
-
-### 15.1 `missing parent for VRFStake primary`
-
-#### Symptom
-
-```text
-missing parent for VRFStake primary: block=N parentHash=<hash>
-```
-
-#### Cause
-
-```text
-bNum=N was paired with block N hash instead of block N-1 hash.
-```
-
-#### Fix
-
-For an existing block:
-
-```go
-parentHash := block.ParentHash().Bytes()
-```
-
-For the next block:
-
-```go
-bNum := parent.NumberU64() + 1
-parentHash := parent.Hash().Bytes()
-```
-
----
-
-### 15.2 `MakeVoW returned nil`
-
-Possible causes:
-
-```text
-1. candidates == 0
-2. candidates < AgreeB
-3. rearrange() failed internally
-4. result.Front() == nil
-5. VRFStake strict mode rejected resolver failure
-```
-
-Recommended diagnostic fields:
-
-```text
-bNum
-candidates
-AgreeB
-generous
-parentHash
-```
-
----
-
-### 15.3 `FE agreed=false`
-
-#### Symptom
-
-```text
-responderTotal < MinAgree
-majority=false
-agreed=false
-nVoWLen=0
-nVoWPrimary=<nil>
-```
-
-#### Meaning
-
-The FE sheet did not collect enough valid responses to form a VoW agreement.
-
-#### Inspect
-
-```text
-AppendFeSheet
-SsData receive path
-bNum / opinion / SI / group classification
-duplicate suppression
-peer receive state
-```
-
----
-
-## 16. Logging Policy
-
-### 16.1 Validation-Phase Logs
-
-```text
-[CONSENSUS] VoW rearrange by VRFStake
-[CONSENSUS] VoW rearrange VRFStake resolver failed
-[CONSENSUS] VoW rearrange VRFStake primary not found
-[CONSENSUS] CommitVoW completed
-[CONSENSUS] VoW FE completed
-```
-
-### 16.2 Recommended Runtime Flags
-
-```bash
---verbosity 3 \
---vflag "vow=6,ss=5,ssdata=4,n2n=4,peer=4" \
---vmodule "vow.go=6,pon.go=5,ss_sheet_vow.go=5,wnode_set.go=4"
-```
-
-### 16.3 Post-Stabilization Severity
-
-```text
-- Normal repeated logs: DEBUG
-- Failures, fallback, mismatch: WARN
-- Block commit summary: INFO
-```
-
----
-
-## 17. Implementation Checklist
-
-```text
-[ ] MakeVoW / CommitVoW / MakeBlockBasedVoW / rearrange use parentHash naming consistently.
-[ ] For bNum=N, callers pass block(N).ParentHash().
-[ ] For next block N+1 prediction, callers pass block(N).Hash().
-[ ] No call site combines cBlock.Hash() with cBlock.NumberU64().
-[ ] rearrange() failure never overwrites Wlist with nil.
-[ ] generous() uses lastCommit only.
-[ ] generous=true resets YellowNum=0 before appending candidates.
-[ ] Init() does not invoke generous().
-[ ] VRFStake resolver failure falls back during stabilization.
-[ ] Simulator validates block.Primary() == ExpectedVRFStakeProposer(...).
-[ ] Fallback count is tracked.
-[ ] Final validation requires fallback count == 0.
-```
-
----
-
-## 18. Summary
-
-VRFStake integration follows one central rule:
-
-```text
-Candidate construction remains VoW-driven.
-Primary placement becomes VRFStake-driven.
-```
-
-Correctness depends primarily on preserving:
-
-```text
 blockNumber = N
-parentHash = block(N-1).Hash()
+parentHash  = hash of block N
 ```
 
-Once this invariant is maintained consistently across `MakeVoW()`, `CommitVoW()`, `MakeBlockBasedVoW()`, `feVoW()`, and simulator validation, VRFStake proposer selection becomes deterministic, testable, and auditable.
+Expected correction:
+
+```text
+parentHash = hash of block N-1
+```
+
+---
+
+### 19.2 Proposer Not Found in Candidate List
+
+Cause:
+
+- the proposer was selected from valid stake state;
+- but the current VoW candidate list does not include it.
+
+Possible reasons:
+
+- eligibility filters differ between proposer calculation and candidate construction;
+- membership state or timing differs;
+- candidate recovery rules changed the set unexpectedly.
+
+This condition must be treated as important because it indicates a mismatch between:
+
+```text
+selection policy
+and
+candidate eligibility policy
+```
+
+---
+
+### 19.3 Frequent Fallback
+
+Cause may include:
+
+- unresolved parent state;
+- proposer calculation failure;
+- candidate-set inconsistency;
+- insufficient synchronization between consensus modules.
+
+Frequent fallback means that the network is not yet operating in full VRFStake mode.
+
+---
+
+## 20. Security and Design Considerations
+
+VRFStake improves primary selection by binding proposer choice to finalized chain context and active membership state.
+
+Its design intention is to provide:
+
+- deterministic proposer selection;
+- reduced static predictability;
+- stake-aware ordering;
+- consistent proposer verification.
+
+However, VRFStake remains dependent on:
+
+- correct parent-state lookup;
+- correct membership-state interpretation;
+- strict consistency of candidate-list construction;
+- deterministic implementation across all nodes.
+
+Any mismatch in these inputs can create proposer disagreement.
+
+---
+
+## 21. Implementation Independence
+
+This specification defines the **protocol behavior**, not a single fixed code layout.
+
+Implementations may differ internally, but they must preserve:
+
+```text
+1. block N uses parent hash of block N-1;
+2. proposer calculation is deterministic;
+3. candidate reordering is consistent;
+4. actual primary matches the expected proposer;
+5. fallback is observable and minimized.
+```
+
+---
+
+## 22. Summary
+
+VRFStake is a deterministic, stake-aware proposer selection mechanism integrated into the existing PoN / VoW flow.
+
+Its role is not to replace consensus, but to strengthen proposer selection by ensuring that:
+
+- the proposer is derived from finalized parent-chain context;
+- all nodes can independently compute the same expected proposer;
+- the VoW candidate list is reordered around that proposer;
+- block primary selection becomes verifiable at the protocol level.
+
+The single most important rule is:
+
+```text
+For block N, VRFStake must use the parent hash of block N-1.
+```
+
+When this rule is maintained consistently, VRFStake can serve as a stable foundation for deterministic and stake-aware primary selection.
